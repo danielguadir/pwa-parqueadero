@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum VehicleType {
+  CAR
+  MOTORCYCLE
+  OTHER
+}
+
+enum SessionStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+}
+
+enum PaymentStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+enum OperationStatus {
+  PENDING
+  CONFIRMED
+  CONFLICT
+  REJECTED
+}
+
+model ParkingLot {
+  id        String           @id @default(uuid()) @db.Uuid
+  name      String
+  capacity  Int
+  timezone  String           @default("America/Bogota")
+  createdAt DateTime         @default(now())
+  sessions  ParkingSession[]
+  tariffs   Tariff[]
+}
+
+model Vehicle {
+  id              String           @id @default(uuid()) @db.Uuid
+  plateNormalized String           @unique
+  type            VehicleType
+  createdAt       DateTime         @default(now())
+  sessions        ParkingSession[]
+}
+
+model AppUser {
+  id              String           @id @db.Uuid // debe enlazarse con proveedor Auth en fase 5
+  name            String
+  role            UserRole         @default(OPERATOR)
+  isActive        Boolean          @default(true)
+  sessionsOpened  ParkingSession[] @relation("SessionOpenedBy")
+  sessionsClosed  ParkingSession[] @relation("SessionClosedBy")
+  payments        Payment[]
+  auditLogs       AuditLog[]
+}
+
+model Tariff {
+  id            String           @id @default(uuid()) @db.Uuid
+  parkingLotId  String           @db.Uuid
+  parkingLot    ParkingLot       @relation(fields: [parkingLotId], references: [id])
+  vehicleType   VehicleType
+  amountCents   Int              // COP enteros; ajustar unidad según negocio
+  minutesBlock  Int              // minutos por bloque
+  validFrom     DateTime         @default(now())
+  validTo       DateTime?
+  sessions      ParkingSession[]
+  @@index([parkingLotId, vehicleType, validFrom])
+}
+
+model ParkingSession {
+  id             String         @id @default(uuid()) @db.Uuid
+  parkingLotId   String         @db.Uuid
+  parkingLot     ParkingLot     @relation(fields: [parkingLotId], references: [id])
+  vehicleId      String         @db.Uuid
+  vehicle        Vehicle        @relation(fields: [vehicleId], references: [id])
+  openedById     String         @db.Uuid
+  openedBy       AppUser        @relation("SessionOpenedBy", fields: [openedById], references: [id])
+  closedById     String?        @db.Uuid
+  closedBy       AppUser?       @relation("SessionClosedBy", fields: [closedById], references: [id])
+  tariffId       String?        @db.Uuid
+  tariff         Tariff?        @relation(fields: [tariffId], references: [id])
+  enteredAt      DateTime       @default(now())
+  exitedAt       DateTime?
+  status         SessionStatus  @default(OPEN)
+  totalCents     Int?
+  payments       Payment[]
+  @@index([parkingLotId, status, enteredAt])
+  @@index([vehicleId, status])
+}
+
+model Payment {
+  id             String         @id @default(uuid()) @db.Uuid
+  sessionId      String         @db.Uuid
+  session        ParkingSession @relation(fields: [sessionId], references: [id])
+  operatorId     String         @db.Uuid
+  operator       AppUser        @relation(fields: [operatorId], references: [id])
+  operationId    String         @unique @db.Uuid  // idempotencia
+  amountCents    Int
+  method         String
+  status         PaymentStatus  @default(CONFIRMED)
+  createdAt      DateTime       @default(now())
+  @@index([sessionId, createdAt])
+}
+
+model Device {
+  id            String          @id @default(uuid()) @db.Uuid
+  name          String
+  isAuthorized  Boolean         @default(false)
+  lastSyncedAt  DateTime?
+  operations    SyncOperation[]
+}
+
+model SyncOperation {
+  id          String          @id @db.Uuid // UUID generado en dispositivo
+  deviceId    String          @db.Uuid
+  device      Device          @relation(fields: [deviceId], references: [id])
+  kind        String
+  payload     Json
+  status      OperationStatus @default(PENDING)
+  result      Json?
+  createdAt   DateTime
+  processedAt DateTime?
+  @@index([deviceId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String   @db.Uuid
+  actor      AppUser  @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  details    Json?
+  createdAt  DateTime @default(now())
+  @@index([entityType, entityId, createdAt])
+}
