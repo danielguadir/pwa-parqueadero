@@ -1,4 +1,4 @@
-import type { LocalParkingSession, LocalPayment, ParkingZone } from "@/types/parking";
+import type { LocalParkingSession, LocalPayment, ParkingZone, ParkingSettings } from "@/types/parking";
 import { PARKING_ZONES } from "@/types/parking";
 
 function sanitizeText(str: string): string {
@@ -103,7 +103,9 @@ export function downloadPdf(bytes: Uint8Array, filename: string): void {
 /**
  * Genera y descarga el tiquete de entrada en formato PDF incluyendo cédula, celular y tarifa fijada.
  */
-export function downloadEntryTicketPdf(session: LocalParkingSession): void {
+export function downloadEntryTicketPdf(session: LocalParkingSession, settings?: Partial<ParkingSettings>): void {
+  const parkingName = settings?.name?.toUpperCase() ?? "PARKINGCONTROL";
+  const nitStr = settings?.nit ? `NIT: ${settings.nit}` : "SISTEMA DE GESTION VEHICULAR";
   const code = `TK-${session.id.slice(0, 8).toUpperCase()}`;
   const entryDate = new Date(session.enteredAt);
   const dateStr = entryDate.toLocaleDateString("es-CO");
@@ -113,8 +115,8 @@ export function downloadEntryTicketPdf(session: LocalParkingSession): void {
   const rateStr = `$ ${(session.agreedRate ?? 4000).toLocaleString("es-CO")} COP`;
 
   const lines = [
-    { text: "PARKINGCONTROL", size: 14, bold: true, align: "center" as const, y: 440 },
-    { text: "SISTEMA DE GESTION VEHICULAR", size: 7, bold: false, align: "center" as const, y: 427 },
+    { text: parkingName, size: 14, bold: true, align: "center" as const, y: 440 },
+    { text: nitStr, size: 7, bold: false, align: "center" as const, y: 427 },
     { text: `TIQUETE DE ENTRADA: ${code}`, size: 8, bold: true, align: "center" as const, y: 413 },
 
     { text: "PLACA:", size: 8, bold: false, align: "center" as const, y: 385 },
@@ -146,7 +148,13 @@ export function downloadEntryTicketPdf(session: LocalParkingSession): void {
 /**
  * Genera y descarga el recibo de salida y pago en formato PDF.
  */
-export function downloadExitReceiptPdf(session: LocalParkingSession, payment?: LocalPayment, totalFormatted?: string): void {
+export function downloadExitReceiptPdf(
+  session: LocalParkingSession,
+  payment?: LocalPayment,
+  totalFormatted?: string,
+  settings?: Partial<ParkingSettings>
+): void {
+  const parkingName = settings?.name?.toUpperCase() ?? "PARKINGCONTROL";
   const code = `RC-${session.id.slice(0, 8).toUpperCase()}`;
   const entryDate = new Date(session.enteredAt);
   const exitDate = session.exitedAt ? new Date(session.exitedAt) : new Date();
@@ -166,7 +174,7 @@ export function downloadExitReceiptPdf(session: LocalParkingSession, payment?: L
   const zoneStr = getZoneLabel(session.zone);
 
   const lines = [
-    { text: "PARKINGCONTROL", size: 14, bold: true, align: "center" as const, y: 480 },
+    { text: parkingName, size: 14, bold: true, align: "center" as const, y: 480 },
     { text: "RECIBO DE SALIDA Y PAGO", size: 8, bold: true, align: "center" as const, y: 465 },
     { text: `COMPROBANTE: ${code}`, size: 7, bold: false, align: "center" as const, y: 452 },
 

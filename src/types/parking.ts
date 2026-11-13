@@ -77,7 +77,7 @@ export interface PendingOperation {
   id: string;                     // UUID único; evita duplicados al reintentar (idempotencia)
   deviceId: string;
   operationType: "OPEN_SESSION" | "CLOSE_SESSION" | "REGISTER_PAYMENT";
-  payload: unknown;
+  payload: Record<string, unknown>;
   state: SyncState;
   createdAt: string;              // ISO-8601 UTC
   retries?: number;
@@ -87,6 +87,7 @@ export interface PendingOperation {
 export interface LocalParkingConfig {
   key: string;
   value: string | number | boolean | Record<string, unknown>;
+  updatedAt?: string;
 }
 
 export interface OccupancyStats {
@@ -156,3 +157,64 @@ export interface DailyBillingSummary {
   cardRevenue: number;
   otherRevenue: number;
 }
+
+export type AppRole = "ADMIN" | "OPERATOR";
+
+export interface AppOperator {
+  id: string;
+  name: string;
+  role: AppRole;
+  document?: string;
+  phone?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface ParkingSettings {
+  name: string;
+  nit?: string;
+  phone?: string;
+  address?: string;
+  carCapacity: number;
+  motorcycleCapacity: number;
+  receiptFooter?: string;
+}
+
+export interface SyncBatchRequest {
+  deviceId: string;
+  operations: PendingOperation[];
+}
+
+export interface SyncBatchResponse {
+  success: boolean;
+  processed: string[];
+  failed: { id: string; error: string }[];
+  serverTime: string;
+  databaseOnline: boolean;
+  message?: string;
+}
+
+export interface SyncStatusState {
+  isOnline: boolean;
+  isSyncing: boolean;
+  pendingCount: number;
+  lastSyncedAt: string | null;
+  error: string | null;
+}
+
+export type ReportPeriod = "TODAY" | "WEEK" | "MONTH" | "ALL";
+
+export interface ConsolidatedReportMetrics {
+  period: ReportPeriod;
+  totalRevenue: number;
+  totalSessions: number;
+  averageTicket: number;
+  cashTotal: number;
+  transferTotal: number;
+  cardTotal: number;
+  otherTotal: number;
+  carCount: number;
+  motoCount: number;
+  otherCount: number;
+}
+

@@ -1,18 +1,37 @@
 {
-  "name": "ParkingControl - Parqueaderos",
+  "name": "ParkingControl - Gestión de Parqueadero",
   "short_name": "ParkingControl",
-  "description": "Plantilla inicial de sistema de parqueaderos",
-  "lang": "es",
+  "description": "Sistema profesional offline-first para control de entradas, salidas, recaudo y tiquetes de parqueaderos",
+  "lang": "es-CO",
   "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#0b1220",
+  "orientation": "portrait-primary",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
       "src": "/icons/parking.svg",
-      "sizes": "any",
+      "sizes": "192x192 512x512",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Registrar Entrada",
+      "short_name": "Entradas",
+      "description": "Registrar nuevo vehículo al parqueadero",
+      "url": "/entradas",
+      "icons": [{ "src": "/icons/parking.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Cobrar y Salida",
+      "short_name": "Salidas",
+      "description": "Buscar placa y cobrar salida de vehículo",
+      "url": "/salidas",
+      "icons": [{ "src": "/icons/parking.svg", "sizes": "96x96" }]
     }
   ]
 }

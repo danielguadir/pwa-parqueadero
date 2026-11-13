@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
-import type { LocalParkingSession, LocalPayment } from "@/types/parking";
+import React, { useState, useEffect } from "react";
+import type { LocalParkingSession, LocalPayment, ParkingSettings } from "@/types/parking";
 import { PARKING_ZONES } from "@/types/parking";
 import { downloadExitReceiptPdf } from "@/lib/pdf/ticket-pdf-generator";
+import { getParkingSettings } from "@/lib/db/local-db";
 
 interface ExitReceiptModalProps {
   session: LocalParkingSession | null;
@@ -12,6 +13,18 @@ interface ExitReceiptModalProps {
 }
 
 export function ExitReceiptModal({ session, payment, onClose }: ExitReceiptModalProps) {
+  const [settings, setSettings] = useState<ParkingSettings | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getParkingSettings().then((res) => {
+      if (active) setSettings(res);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   if (!session) return null;
 
   const receiptCode = `RC-${session.id.slice(0, 8).toUpperCase()}`;
@@ -39,7 +52,7 @@ export function ExitReceiptModal({ session, payment, onClose }: ExitReceiptModal
       : "🏷️ Otro";
 
   const handleDownloadPdf = () => {
-    downloadExitReceiptPdf(session, payment ?? undefined);
+    downloadExitReceiptPdf(session, payment ?? undefined, undefined, settings || undefined);
   };
 
   const handlePrint = () => {
@@ -55,8 +68,12 @@ export function ExitReceiptModal({ session, payment, onClose }: ExitReceiptModal
       <div className="relative w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5 sm:p-6 text-slate-100 shadow-2xl print:border-none print:bg-white print:text-black print:p-2 print:shadow-none">
         {/* Encabezado */}
         <div className="border-b border-dashed border-slate-700 pb-3 text-center print:border-neutral-400">
-          <p className="text-base sm:text-lg font-bold tracking-tight text-white print:text-black">▣ PARKINGCONTROL</p>
-          <p className="text-[11px] text-slate-400 print:text-neutral-600">Recibo de Salida y Pago</p>
+          <p className="text-base sm:text-lg font-bold tracking-tight text-white print:text-black">
+            ▣ {settings?.name ? settings.name.toUpperCase() : "PARKINGCONTROL"}
+          </p>
+          <p className="text-[11px] text-slate-400 print:text-neutral-600">
+            {settings?.nit ? `NIT: ${settings.nit}` : "Recibo de Salida y Pago"}
+          </p>
           <p className="mt-0.5 font-mono text-xs font-semibold text-teal-400 print:text-neutral-800">
             {receiptCode}
           </p>

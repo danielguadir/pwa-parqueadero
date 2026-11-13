@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
-import type { LocalParkingSession } from "@/types/parking";
+import React, { useState, useEffect } from "react";
+import type { LocalParkingSession, ParkingSettings } from "@/types/parking";
 import { PARKING_ZONES } from "@/types/parking";
 import { downloadEntryTicketPdf } from "@/lib/pdf/ticket-pdf-generator";
+import { getParkingSettings } from "@/lib/db/local-db";
 
 interface EntryTicketModalProps {
   session: LocalParkingSession | null;
@@ -11,6 +12,18 @@ interface EntryTicketModalProps {
 }
 
 export function EntryTicketModal({ session, onClose }: EntryTicketModalProps) {
+  const [settings, setSettings] = useState<ParkingSettings | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getParkingSettings().then((res) => {
+      if (active) setSettings(res);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   if (!session) return null;
 
   const ticketCode = `TK-${session.id.slice(0, 8).toUpperCase()}`;
@@ -34,7 +47,7 @@ export function EntryTicketModal({ session, onClose }: EntryTicketModalProps) {
   };
 
   const handleDownloadPdf = () => {
-    downloadEntryTicketPdf(session);
+    downloadEntryTicketPdf(session, settings || undefined);
   };
 
   return (
@@ -46,8 +59,12 @@ export function EntryTicketModal({ session, onClose }: EntryTicketModalProps) {
       <div className="relative w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5 sm:p-6 text-slate-100 shadow-2xl print:border-none print:bg-white print:text-black print:p-2 print:shadow-none">
         {/* Encabezado del Ticket */}
         <div className="border-b border-dashed border-slate-700 pb-3 text-center print:border-neutral-400">
-          <p className="text-base sm:text-lg font-bold tracking-tight text-white print:text-black">▣ PARKINGCONTROL</p>
-          <p className="text-[11px] text-slate-400 print:text-neutral-600">Sistema Profesional de Parqueadero</p>
+          <p className="text-base sm:text-lg font-bold tracking-tight text-white print:text-black">
+            ▣ {settings?.name ? settings.name.toUpperCase() : "PARKINGCONTROL"}
+          </p>
+          <p className="text-[11px] text-slate-400 print:text-neutral-600">
+            {settings?.nit ? `NIT: ${settings.nit}` : "Sistema Profesional de Parqueadero"}
+          </p>
           <p className="mt-1 font-mono text-xs font-semibold text-teal-400 print:text-neutral-800">
             {ticketCode}
           </p>
