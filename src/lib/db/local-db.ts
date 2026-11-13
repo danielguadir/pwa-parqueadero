@@ -1,22 +1,61 @@
 import Dexie, { type Table } from "dexie";
-import type { SyncState } from "@/types/parking";
+import type {
+  LocalParkingSession,
+  LocalVehicle,
+  PendingOperation,
+  LocalParkingConfig,
+} from "@/types/parking";
 
-export interface PendingOperation {
-  id: string;              // UUID único; evita duplicados al reintentar
-  deviceId: string;
-  operationType: "OPEN_SESSION" | "CLOSE_SESSION" | "REGISTER_PAYMENT";
-  payload: unknown;
-  state: SyncState;
-  createdAt: string;       // ISO-8601 UTC
-}
-
-// Importar este módulo ÚNICAMENTE desde componentes/servicios del navegador.
-// Es la estructura inicial de almacenamiento, NO un sincronizador implementado.
-class ParkingLocalDb extends Dexie {
+export class ParkingLocalDb extends Dexie {
+  sessions!: Table<LocalParkingSession, string>;
+  vehicles!: Table<LocalVehicle, string>;
   pendingOperations!: Table<PendingOperation, string>;
+  configs!: Table<LocalParkingConfig, string>;
+
   constructor() {
     super("ParkingControlLocal");
-    this.version(1).stores({ pendingOperations: "id,deviceId,operationType,state,createdAt" });
+
+    // Esquema versión 1 (base inicial previa)
+    this.version(1).stores({
+      pendingOperations: "id,deviceId,operationType,state,createdAt",
+    });
+
+    // Esquema versión 2: soporte completo para sesiones, vehículos y configuración local
+    this.version(2).stores({
+      pendingOperations: "id,deviceId,operationType,state,createdAt",
+      sessions: "id, plateNormalized, status, [plateNormalized+status], vehicleCategory, enteredAt, syncState",
+      vehicles: "plateNormalized, type, lastEnteredAt",
+      configs: "key",
+    });
   }
 }
-export function createLocalDb() { return new ParkingLocalDb(); }
+
+// Singleton en memoria para el navegador
+let dbInstance: ParkingLocalDb | null = null;
+
+export function getLocalDb(): ParkingLocalDb {
+  if (typeof window === "undefined") {
+    // Entorno de servidor: instanciación para evitar excepciones durante compilación/SSR
+    return new ParkingLocalDb();
+  }
+  if (!dbInstance) {
+    dbInstance = new ParkingLocalDb();
+  }
+  return dbInstance;
+}
+
+/**
+ * Obtiene o inicializa un UUID persistente para este navegador/dispositivo.
+ */
+export function getOrCreateDeviceId(): string {
+  if (typeof window === "undefined") {
+    return "server-node-device";
+  }
+  const KEY = "parking_device_id_v1";
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(KEY, id);
+  }
+  return id;
+}
