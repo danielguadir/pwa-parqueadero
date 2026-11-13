@@ -21,7 +21,7 @@ function getZoneLabel(zone?: ParkingZone): string {
  * Genera un documento PDF binario estándar (PDF 1.4) optimizado para formato recibo (80mm).
  * Funciona 100% offline sin librerías externas pesadas.
  */
-function createReceiptPdf(lines: { text: string; size: number; bold?: boolean; align?: "center" | "left" | "right"; y: number }[], height: number = 420): Uint8Array {
+function createReceiptPdf(lines: { text: string; size: number; bold?: boolean; align?: "center" | "left" | "right"; y: number }[], height: number = 460): Uint8Array {
   const width = 226; // Ancho térmico estándar ~80mm en puntos tipográficos
 
   let stream = "";
@@ -101,7 +101,7 @@ export function downloadPdf(bytes: Uint8Array, filename: string): void {
 }
 
 /**
- * Genera y descarga el tiquete de entrada en formato PDF.
+ * Genera y descarga el tiquete de entrada en formato PDF incluyendo cédula, celular y tarifa fijada.
  */
 export function downloadEntryTicketPdf(session: LocalParkingSession): void {
   const code = `TK-${session.id.slice(0, 8).toUpperCase()}`;
@@ -110,24 +110,28 @@ export function downloadEntryTicketPdf(session: LocalParkingSession): void {
   const timeStr = entryDate.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const categoryStr = session.vehicleCategory === "CAR" ? "AUTOMOVIL" : session.vehicleCategory === "MOTORCYCLE" ? "MOTOCICLETA" : "OTRO";
   const zoneStr = getZoneLabel(session.zone);
+  const rateStr = `$ ${(session.agreedRate ?? 4000).toLocaleString("es-CO")} COP`;
 
   const lines = [
-    { text: "PARKINGCONTROL", size: 14, bold: true, align: "center" as const, y: 395 },
-    { text: "SISTEMA DE GESTION VEHICULAR", size: 7, bold: false, align: "center" as const, y: 382 },
-    { text: `TIQUETE DE ENTRADA: ${code}`, size: 8, bold: true, align: "center" as const, y: 368 },
+    { text: "PARKINGCONTROL", size: 14, bold: true, align: "center" as const, y: 440 },
+    { text: "SISTEMA DE GESTION VEHICULAR", size: 7, bold: false, align: "center" as const, y: 427 },
+    { text: `TIQUETE DE ENTRADA: ${code}`, size: 8, bold: true, align: "center" as const, y: 413 },
 
-    { text: "PLACA:", size: 8, bold: false, align: "center" as const, y: 335 },
-    { text: session.plateNormalized, size: 22, bold: true, align: "center" as const, y: 310 },
-    { text: `TIPO: ${categoryStr}`, size: 9, bold: true, align: "center" as const, y: 290 },
+    { text: "PLACA:", size: 8, bold: false, align: "center" as const, y: 385 },
+    { text: session.plateNormalized, size: 22, bold: true, align: "center" as const, y: 360 },
+    { text: `TIPO: ${categoryStr} | ZONA: ${zoneStr.toUpperCase()}`, size: 8, bold: true, align: "center" as const, y: 342 },
 
-    { text: `ZONA ASIGNADA:`, size: 8, bold: false, align: "left" as const, y: 260 },
-    { text: zoneStr.toUpperCase(), size: 10, bold: true, align: "left" as const, y: 247 },
+    { text: `TARIFA FIJADA:`, size: 8, bold: false, align: "center" as const, y: 318 },
+    { text: rateStr, size: 14, bold: true, align: "center" as const, y: 300 },
 
-    { text: `FECHA DE INGRESO:`, size: 8, bold: false, align: "left" as const, y: 220 },
-    { text: `${dateStr} - ${timeStr}`, size: 9, bold: true, align: "left" as const, y: 207 },
+    ...(session.driverDocument ? [{ text: `CEDULA / DOC: ${session.driverDocument}`, size: 8, bold: true, align: "left" as const, y: 268 }] : []),
+    ...(session.driverPhone ? [{ text: `CELULAR: ${session.driverPhone}`, size: 8, bold: true, align: "left" as const, y: 252 }] : []),
 
-    { text: `ESTADO: ACTIVO DENTRO`, size: 9, bold: true, align: "left" as const, y: 180 },
-    ...(session.notes ? [{ text: `OBS: ${session.notes.slice(0, 32)}`, size: 8, bold: false, align: "left" as const, y: 160 }] : []),
+    { text: `FECHA DE INGRESO:`, size: 8, bold: false, align: "left" as const, y: 228 },
+    { text: `${dateStr} - ${timeStr}`, size: 9, bold: true, align: "left" as const, y: 215 },
+
+    { text: `ESTADO: ACTIVO DENTRO`, size: 8, bold: true, align: "left" as const, y: 190 },
+    ...(session.notes ? [{ text: `OBS: ${session.notes.slice(0, 32)}`, size: 8, bold: false, align: "left" as const, y: 172 }] : []),
 
     { text: "CONSERVE ESTE TIQUETE", size: 9, bold: true, align: "center" as const, y: 55 },
     { text: "Se requiere para retirar su vehiculo.", size: 7, bold: false, align: "center" as const, y: 43 },
@@ -135,7 +139,7 @@ export function downloadEntryTicketPdf(session: LocalParkingSession): void {
     { text: code, size: 7, bold: false, align: "center" as const, y: 18 },
   ];
 
-  const pdfBytes = createReceiptPdf(lines, 430);
+  const pdfBytes = createReceiptPdf(lines, 470);
   downloadPdf(pdfBytes, `Tiquete_Entrada_${session.plateNormalized}.pdf`);
 }
 
@@ -156,42 +160,45 @@ export function downloadExitReceiptPdf(session: LocalParkingSession, payment?: L
   const mins = diffMinutes % 60;
   const durationStr = `${hours}h ${mins}m (${diffMinutes} min)`;
 
-  const totalAmount = totalFormatted ?? `$ ${(payment?.amountCents ?? session.totalCents ?? 0).toLocaleString("es-CO")} COP`;
+  const totalAmount = totalFormatted ?? `$ ${(payment?.amountCents ?? session.totalCents ?? session.agreedRate ?? 4000).toLocaleString("es-CO")} COP`;
   const methodLabel = payment?.method === "CASH" ? "EFECTIVO" : payment?.method === "NEQUI_DAVIPLATA" ? "NEQUI / DAVIPLATA" : payment?.method === "CARD" ? "TARJETA / DATAFONO" : "OTRO";
   const categoryStr = session.vehicleCategory === "CAR" ? "AUTOMOVIL" : session.vehicleCategory === "MOTORCYCLE" ? "MOTOCICLETA" : "OTRO";
   const zoneStr = getZoneLabel(session.zone);
 
   const lines = [
-    { text: "PARKINGCONTROL", size: 14, bold: true, align: "center" as const, y: 460 },
-    { text: "RECIBO DE SALIDA Y PAGO", size: 8, bold: true, align: "center" as const, y: 445 },
-    { text: `COMPROBANTE: ${code}`, size: 7, bold: false, align: "center" as const, y: 432 },
+    { text: "PARKINGCONTROL", size: 14, bold: true, align: "center" as const, y: 480 },
+    { text: "RECIBO DE SALIDA Y PAGO", size: 8, bold: true, align: "center" as const, y: 465 },
+    { text: `COMPROBANTE: ${code}`, size: 7, bold: false, align: "center" as const, y: 452 },
 
-    { text: "VEHICULO RETIRADO:", size: 8, bold: false, align: "center" as const, y: 405 },
-    { text: session.plateNormalized, size: 22, bold: true, align: "center" as const, y: 380 },
-    { text: `TIPO: ${categoryStr} | ZONA: ${zoneStr}`, size: 8, bold: false, align: "center" as const, y: 362 },
+    { text: "VEHICULO RETIRADO:", size: 8, bold: false, align: "center" as const, y: 425 },
+    { text: session.plateNormalized, size: 22, bold: true, align: "center" as const, y: 400 },
+    { text: `TIPO: ${categoryStr} | ZONA: ${zoneStr.toUpperCase()}`, size: 8, bold: false, align: "center" as const, y: 382 },
 
-    { text: `ENTRADA:`, size: 7, bold: false, align: "left" as const, y: 335 },
-    { text: entryStr, size: 8, bold: true, align: "left" as const, y: 323 },
+    ...(session.driverDocument ? [{ text: `CLIENTE DOC: ${session.driverDocument}`, size: 8, bold: true, align: "left" as const, y: 355 }] : []),
+    ...(session.driverPhone ? [{ text: `CELULAR: ${session.driverPhone}`, size: 8, bold: false, align: "left" as const, y: 340 }] : []),
 
-    { text: `SALIDA:`, size: 7, bold: false, align: "left" as const, y: 305 },
-    { text: exitStr, size: 8, bold: true, align: "left" as const, y: 293 },
+    { text: `ENTRADA:`, size: 7, bold: false, align: "left" as const, y: 315 },
+    { text: entryStr, size: 8, bold: true, align: "left" as const, y: 303 },
 
-    { text: `TIEMPO ESTANCIA:`, size: 7, bold: false, align: "left" as const, y: 275 },
-    { text: durationStr, size: 9, bold: true, align: "left" as const, y: 263 },
+    { text: `SALIDA:`, size: 7, bold: false, align: "left" as const, y: 285 },
+    { text: exitStr, size: 8, bold: true, align: "left" as const, y: 273 },
 
-    { text: `METODO DE PAGO:`, size: 7, bold: false, align: "left" as const, y: 245 },
-    { text: methodLabel, size: 9, bold: true, align: "left" as const, y: 233 },
+    { text: `TIEMPO ESTANCIA:`, size: 7, bold: false, align: "left" as const, y: 255 },
+    { text: durationStr, size: 9, bold: true, align: "left" as const, y: 243 },
 
-    { text: "TOTAL PAGADO:", size: 9, bold: false, align: "center" as const, y: 195 },
-    { text: totalAmount, size: 16, bold: true, align: "center" as const, y: 175 },
+    { text: `METODO DE PAGO:`, size: 7, bold: false, align: "left" as const, y: 225 },
+    { text: methodLabel, size: 9, bold: true, align: "left" as const, y: 213 },
 
-    { text: "ESTADO: SALIDA COMPLETADA", size: 8, bold: true, align: "center" as const, y: 140 },
+    { text: "TOTAL PAGADO:", size: 9, bold: false, align: "center" as const, y: 175 },
+    { text: totalAmount, size: 16, bold: true, align: "center" as const, y: 155 },
+
+    { text: "ESTADO: SALIDA COMPLETADA", size: 8, bold: true, align: "center" as const, y: 125 },
 
     { text: "GRACIAS POR SU VISITA", size: 9, bold: true, align: "center" as const, y: 55 },
     { text: "Comprobante digital valido.", size: 7, bold: false, align: "center" as const, y: 43 },
     { text: code, size: 7, bold: false, align: "center" as const, y: 25 },
   ];
 
-  const pdfBytes = createReceiptPdf(lines, 490);
+  const pdfBytes = createReceiptPdf(lines, 510);
   downloadPdf(pdfBytes, `Recibo_Salida_${session.plateNormalized}.pdf`);
 }

@@ -14,6 +14,9 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
   const [plate, setPlate] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<VehicleCategory | null>(null);
   const [selectedZone, setSelectedZone] = useState<ParkingZone>("ZONA_CENTRAL_A");
+  const [driverDocument, setDriverDocument] = useState("");
+  const [driverPhone, setDriverPhone] = useState("");
+  const [customRate, setCustomRate] = useState<string>("4000"); // $4.000 carro por defecto
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -31,6 +34,14 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
   const validation = trimmedPlate ? validatePlate(trimmedPlate) : null;
   const validationHint = validation && !validation.isValid ? validation.error ?? null : null;
   const effectiveCategory = selectedCategory ?? (validation?.isValid && validation.suggestedType !== "OTHER" ? validation.suggestedType : "CAR");
+
+  // Al cambiar la categoría, actualizar automáticamente la tarifa por defecto ($4.000 carro, $1.500 moto)
+  const handleCategoryChange = (category: VehicleCategory) => {
+    setSelectedCategory(category);
+    if (category === "CAR") setCustomRate("4000");
+    else if (category === "MOTORCYCLE") setCustomRate("1500");
+    else setCustomRate("6000");
+  };
 
   // Verificación asíncrona de duplicado solo si la placa es válida
   useEffect(() => {
@@ -62,12 +73,21 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
       return;
     }
 
+    const rateNum = Number(customRate);
+    if (isNaN(rateNum) || rateNum < 0) {
+      setErrorMessage("La tarifa debe ser un valor numérico válido mayor o igual a 0.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const result = await registerEntry({
         plate: currentValidation.normalizedPlate,
         vehicleCategory: effectiveCategory,
         zone: selectedZone,
+        driverDocument: driverDocument.trim() || undefined,
+        driverPhone: driverPhone.trim() || undefined,
+        agreedRate: rateNum,
         notes: notes.trim() || undefined,
       });
 
@@ -76,9 +96,12 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
       } else {
         // Limpieza y reseteo de formulario
         setPlate("");
+        setDriverDocument("");
+        setDriverPhone("");
         setNotes("");
         setSelectedCategory(null);
         setSelectedZone("ZONA_CENTRAL_A");
+        setCustomRate("4000");
         setErrorMessage(null);
         setDuplicateWarning(null);
         onEntrySuccess(result.session);
@@ -98,7 +121,7 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
           <span>🚗</span> Registrar Entrada de Vehículo
         </h2>
         <p className="mt-0.5 text-xs text-slate-400">
-          Diseñado para celular: captura ágil, teclado amplio y detección automática.
+          Tarifa fija automática ($4.000 auto / $1.500 moto), zona de parqueo y datos de contacto.
         </p>
       </div>
 
@@ -117,9 +140,16 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
               spellCheck="false"
               value={plate}
               onChange={(e) => {
-                setPlate(e.target.value.toUpperCase());
+                const val = e.target.value.toUpperCase();
+                setPlate(val);
                 setErrorMessage(null);
                 setDuplicateWarning(null);
+                // Si infiere moto al escribir, ajustar tarifa a $1.500; si es carro, $4.000
+                const v = validatePlate(val);
+                if (v.isValid && !selectedCategory) {
+                  if (v.suggestedType === "MOTORCYCLE") setCustomRate("1500");
+                  else if (v.suggestedType === "CAR") setCustomRate("4000");
+                }
               }}
               placeholder="Ej. ABC123 o ABC12D"
               maxLength={8}
@@ -158,7 +188,7 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
-              onClick={() => setSelectedCategory("CAR")}
+              onClick={() => handleCategoryChange("CAR")}
               className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 rounded-xl border py-2.5 px-2 text-xs sm:text-sm font-semibold transition active:scale-95 ${
                 effectiveCategory === "CAR"
                   ? "border-teal-500 bg-teal-950/70 text-teal-300 ring-2 ring-teal-500/40"
@@ -171,7 +201,7 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
 
             <button
               type="button"
-              onClick={() => setSelectedCategory("MOTORCYCLE")}
+              onClick={() => handleCategoryChange("MOTORCYCLE")}
               className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 rounded-xl border py-2.5 px-2 text-xs sm:text-sm font-semibold transition active:scale-95 ${
                 effectiveCategory === "MOTORCYCLE"
                   ? "border-indigo-500 bg-indigo-950/70 text-indigo-300 ring-2 ring-indigo-500/40"
@@ -184,7 +214,7 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
 
             <button
               type="button"
-              onClick={() => setSelectedCategory("OTHER")}
+              onClick={() => handleCategoryChange("OTHER")}
               className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 rounded-xl border py-2.5 px-2 text-xs sm:text-sm font-semibold transition active:scale-95 ${
                 effectiveCategory === "OTHER"
                   ? "border-amber-500 bg-amber-950/70 text-amber-300 ring-2 ring-amber-500/40"
@@ -197,7 +227,68 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
           </div>
         </div>
 
-        {/* Selector de Zona de Parqueo (Solicitado por el usuario) */}
+        {/* Tarifa Fijada por Defecto (Editable) */}
+        <div className="rounded-xl border border-teal-500/30 bg-teal-950/20 p-3">
+          <label htmlFor="rate-input" className="block text-xs font-semibold uppercase tracking-wider text-teal-300">
+            💵 Tarifa Asignada ($ COP)
+          </label>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="text-sm font-bold text-slate-400">$</span>
+            <input
+              id="rate-input"
+              type="number"
+              min="0"
+              step="100"
+              inputMode="numeric"
+              value={customRate}
+              onChange={(e) => setCustomRate(e.target.value)}
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xl font-extrabold text-white focus:border-teal-400 focus:outline-none"
+            />
+            <span className="text-xs text-slate-400">COP</span>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">
+            Cobro fijo predeterminado: $4.000 para automóvil y $1.500 para moto (modificable si es necesario).
+          </p>
+        </div>
+
+        {/* Datos del Conductor: Cédula y Celular (Solicitado por el usuario) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div>
+            <label htmlFor="document-input" className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              🪪 Cédula / Documento <span className="text-slate-500 text-[10px] normal-case">(Opcional)</span>
+            </label>
+            <input
+              id="document-input"
+              type="text"
+              inputMode="numeric"
+              value={driverDocument}
+              onChange={(e) => setDriverDocument(e.target.value)}
+              placeholder="Ej. 1085234987"
+              maxLength={15}
+              disabled={isSubmitting}
+              className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs sm:text-sm text-slate-200 placeholder:text-slate-600 focus:border-teal-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="phone-input" className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              📱 Celular / Teléfono <span className="text-slate-500 text-[10px] normal-case">(Opcional)</span>
+            </label>
+            <input
+              id="phone-input"
+              type="tel"
+              inputMode="tel"
+              value={driverPhone}
+              onChange={(e) => setDriverPhone(e.target.value)}
+              placeholder="Ej. 3124567890"
+              maxLength={15}
+              disabled={isSubmitting}
+              className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs sm:text-sm text-slate-200 placeholder:text-slate-600 focus:border-teal-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Selector de Zona de Parqueo */}
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
             📍 Zona de Parqueo Asignada
@@ -230,7 +321,7 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ej. Casco adicional, rayón puerta, etc."
+            placeholder="Ej. Casco adicional, rayón previo, etc."
             disabled={isSubmitting}
             className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-xs sm:text-sm text-slate-200 placeholder:text-slate-600 focus:border-teal-500 focus:outline-none"
           />
@@ -249,7 +340,7 @@ export function EntryForm({ onEntrySuccess }: EntryFormProps) {
           disabled={isSubmitting || Boolean(duplicateWarning)}
           className="w-full rounded-xl bg-teal-500 py-3.5 px-4 text-sm sm:text-base font-bold text-slate-950 shadow-lg shadow-teal-500/20 transition hover:bg-teal-400 active:scale-98 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-teal-400"
         >
-          {isSubmitting ? "Registrando entrada..." : "✓ Registrar Entrada y Generar Tiquete"}
+          {isSubmitting ? "Registrando entrada..." : `✓ Registrar Entrada ($${Number(customRate || 0).toLocaleString("es-CO")} COP)`}
         </button>
       </form>
     </div>

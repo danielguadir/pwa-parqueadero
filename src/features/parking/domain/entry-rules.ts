@@ -13,6 +13,16 @@ export interface CanRegisterEntryResult {
 }
 
 /**
+ * Obtiene el valor por defecto de la tarifa según categoría:
+ * $4.000 para automóvil, $1.500 para motocicleta, $6.000 para otros.
+ */
+export function getDefaultRateForCategory(category: "CAR" | "MOTORCYCLE" | "OTHER"): number {
+  if (category === "CAR") return 4000;
+  if (category === "MOTORCYCLE") return 1500;
+  return 6000;
+}
+
+/**
  * Valida si un vehículo puede ingresar al parqueadero considerando:
  * 1. Formato de placa válido.
  * 2. Si ya tiene una estancia activa (vehículo aún dentro).
@@ -84,6 +94,12 @@ export function buildEntryEntities(
   const plateNormalized = input.plate.trim().toUpperCase().replace(/[\s\-_.]/g, "");
   const parkingLotId = input.parkingLotId ?? "default-lot";
   const zone = input.zone ?? "ZONA_CENTRAL_A";
+  const agreedRate = typeof input.agreedRate === "number" && input.agreedRate >= 0
+    ? input.agreedRate
+    : getDefaultRateForCategory(input.vehicleCategory);
+
+  const driverDocument = input.driverDocument?.trim() || undefined;
+  const driverPhone = input.driverPhone?.trim() || undefined;
 
   const session: LocalParkingSession = {
     id: sessionId,
@@ -91,6 +107,9 @@ export function buildEntryEntities(
     plateNormalized,
     vehicleCategory: input.vehicleCategory,
     zone,
+    driverDocument,
+    driverPhone,
+    agreedRate,
     enteredAt: isoDate,
     exitedAt: null,
     status: "OPEN",
@@ -110,6 +129,9 @@ export function buildEntryEntities(
       plateNormalized,
       vehicleCategory: input.vehicleCategory,
       zone,
+      driverDocument,
+      driverPhone,
+      agreedRate,
       enteredAt: isoDate,
       notes: input.notes?.trim() || undefined,
     },

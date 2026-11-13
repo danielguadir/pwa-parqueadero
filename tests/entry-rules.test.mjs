@@ -97,6 +97,7 @@ test("buildEntryEntities genera sesión y operación de sincronización consiste
   assert.equal(session.notes, "Cuidado con el retrovisor");
   assert.equal(session.syncState, "PENDING");
   assert.equal(session.parkingLotId, "lot-central");
+  assert.equal(session.agreedRate, 4000); // Tarifa fija por defecto para CAR
 
   // Verificaciones de la operación en cola
   assert.ok(operation.id);
@@ -106,4 +107,35 @@ test("buildEntryEntities genera sesión y operación de sincronización consiste
   assert.equal(operation.createdAt, "2026-11-13T10:00:00.000Z");
   assert.equal(operation.payload.sessionId, session.id);
   assert.equal(operation.payload.plateNormalized, "HJK789");
+  assert.equal(operation.payload.agreedRate, 4000);
+});
+
+test("buildEntryEntities guarda cédula, celular, zona y tarifa pactada personalizada", () => {
+  const fixedDate = new Date("2026-11-13T10:00:00.000Z");
+  const deviceId = "device-xyz";
+
+  const { session, operation } = buildEntryEntities(
+    {
+      plate: "MTO12C",
+      vehicleCategory: "MOTORCYCLE",
+      zone: "ZONA_SUR",
+      driverDocument: "1085234567",
+      driverPhone: "3124567890",
+      agreedRate: 1500,
+    },
+    deviceId,
+    fixedDate
+  );
+
+  assert.equal(session.plateNormalized, "MTO12C");
+  assert.equal(session.vehicleCategory, "MOTORCYCLE");
+  assert.equal(session.zone, "ZONA_SUR");
+  assert.equal(session.driverDocument, "1085234567");
+  assert.equal(session.driverPhone, "3124567890");
+  assert.equal(session.agreedRate, 1500);
+
+  assert.equal(operation.payload.driverDocument, "1085234567");
+  assert.equal(operation.payload.driverPhone, "3124567890");
+  assert.equal(operation.payload.zone, "ZONA_SUR");
+  assert.equal(operation.payload.agreedRate, 1500);
 });

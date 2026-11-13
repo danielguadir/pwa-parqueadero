@@ -2,6 +2,7 @@
 export type VehicleCategory = "CAR" | "MOTORCYCLE" | "OTHER";
 export type ParkingSessionState = "OPEN" | "CLOSED" | "CANCELLED";
 export type SyncState = "PENDING" | "SENDING" | "CONFIRMED" | "CONFLICT" | "FAILED";
+export type BillingMode = "FLAT" | "TIME_BASED";
 
 export type ParkingZone =
   | "ZONA_NORTE"
@@ -35,6 +36,9 @@ export interface LocalParkingSession {
   plateNormalized: string;        // Placa en mayúsculas sin espacios
   vehicleCategory: VehicleCategory;
   zone?: ParkingZone;             // Zona física de parqueo asignada
+  driverDocument?: string;        // Cédula / documento del conductor
+  driverPhone?: string;           // Celular / teléfono del conductor
+  agreedRate?: number;            // Tarifa fijada al ingresar ($4.000 carro / $1.500 moto por defecto)
   enteredAt: string;              // ISO-8601 UTC
   exitedAt: string | null;        // ISO-8601 UTC al cerrar
   status: ParkingSessionState;
@@ -62,6 +66,8 @@ export interface LocalPayment {
 export interface LocalVehicle {
   plateNormalized: string;
   type: VehicleCategory;
+  driverDocument?: string;
+  driverPhone?: string;
   createdAt: string;
   lastEnteredAt: string;
   totalVisits?: number;
@@ -94,9 +100,13 @@ export interface OccupancyStats {
 }
 
 export interface TariffConfig {
-  carHourlyRate: number;          // Tarifa hora carro en COP (ej: 3500)
-  motorcycleHourlyRate: number;   // Tarifa hora moto en COP (ej: 1800)
-  otherHourlyRate: number;        // Tarifa otros (ej: 4500)
+  billingMode: BillingMode;       // FLAT (fija) o TIME_BASED (por tiempo)
+  carFlatRate: number;            // Tarifa fija carro en COP: $4.000 por defecto
+  motorcycleFlatRate: number;     // Tarifa fija moto en COP: $1.500 por defecto
+  otherFlatRate: number;          // Tarifa fija otros: $6.000 por defecto
+  carHourlyRate: number;          // Tarifa hora carro en COP: $4.000
+  motorcycleHourlyRate: number;   // Tarifa hora moto en COP: $1.500
+  otherHourlyRate: number;        // Tarifa otros: $6.000
   gracePeriodMinutes: number;     // Minutos de cortesía/gracia sin costo (ej: 10)
   chargeFractionAfterHour: boolean; // Si fracciona tras la primera hora
   fractionBlockMinutes: number;   // Bloque de fracción en minutos (ej: 15)
@@ -121,6 +131,9 @@ export interface RegisterEntryInput {
   plate: string;
   vehicleCategory: VehicleCategory;
   zone?: ParkingZone;
+  driverDocument?: string;
+  driverPhone?: string;
+  agreedRate?: number;
   notes?: string;
   parkingLotId?: string;
 }
@@ -128,6 +141,7 @@ export interface RegisterEntryInput {
 export interface CloseSessionInput {
   sessionId: string;
   paymentMethod: PaymentMethod;
+  customAmount?: number;
   discountCents?: number;
   notes?: string;
   operatorId?: string;

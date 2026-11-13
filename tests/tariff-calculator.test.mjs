@@ -5,55 +5,68 @@ import {
   DEFAULT_TARIFF_CONFIG,
 } from "../src/features/billing/domain/tariff-calculator.ts";
 
-test("calculateParkingFee aplica periodo de gracia para estancias cortas", () => {
+test("calculateParkingFee aplica tarifa plana por defecto ($4.000 carro / $1.500 moto) independientemente del tiempo", () => {
   const entered = "2026-11-13T10:00:00.000Z";
-  const exited = "2026-11-13T10:08:00.000Z"; // 8 minutos
+  // 5 minutos después
+  const shortExit = "2026-11-13T10:05:00.000Z";
+  // 3 horas después
+  const longExit = "2026-11-13T13:00:00.000Z";
 
-  const result = calculateParkingFee(entered, exited, "CAR", DEFAULT_TARIFF_CONFIG);
+  // Carro corta estancia: $4.000
+  const carShort = calculateParkingFee(entered, shortExit, "CAR", DEFAULT_TARIFF_CONFIG);
+  assert.equal(carShort.amountDue, 4000);
+  assert.equal(carShort.isGracePeriod, false);
+  assert.ok(carShort.breakdown.includes("4.000"));
 
-  assert.equal(result.totalMinutes, 8);
-  assert.equal(result.amountDue, 0);
-  assert.equal(result.isGracePeriod, true);
-  assert.ok(result.breakdown.includes("cortesía"));
+  // Carro larga estancia: $4.000 (indiferente del tiempo)
+  const carLong = calculateParkingFee(entered, longExit, "CAR", DEFAULT_TARIFF_CONFIG);
+  assert.equal(carLong.amountDue, 4000);
+
+  // Moto: $1.500 fija
+  const moto = calculateParkingFee(entered, longExit, "MOTORCYCLE", DEFAULT_TARIFF_CONFIG);
+  assert.equal(moto.amountDue, 1500);
+  assert.ok(moto.breakdown.includes("1.500"));
 });
 
-test("calculateParkingFee cobra tarifa base de 1 hora hasta 60 minutos", () => {
+test("calculateParkingFee respeta tarifa personalizada acordada al ingreso si existe", () => {
   const entered = "2026-11-13T10:00:00.000Z";
-  const exited = "2026-11-13T10:45:00.000Z"; // 45 minutos
+  const exited = "2026-11-13T12:00:00.000Z";
 
-  // Automóvil: $3.500
-  const carResult = calculateParkingFee(entered, exited, "CAR", DEFAULT_TARIFF_CONFIG);
-  assert.equal(carResult.amountDue, 3500);
-  assert.equal(carResult.isGracePeriod, false);
+  const customResult = calculateParkingFee(
+    entered,
+    exited,
+    "CAR",
+    DEFAULT_TARIFF_CONFIG,
+    5000 // Tarifa personalizada acordada de $5.000
+  );
 
-  // Motocicleta: $1.800
-  const motoResult = calculateParkingFee(entered, exited, "MOTORCYCLE", DEFAULT_TARIFF_CONFIG);
-  assert.equal(motoResult.amountDue, 1800);
-  assert.equal(motoResult.isGracePeriod, false);
+  assert.equal(customResult.amountDue, 5000);
+  assert.ok(customResult.breakdown.includes("acordada al ingreso"));
 });
 
-test("calculateParkingFee cobra fracciones de 15 minutos tras la primera hora", () => {
+test("calculateParkingFee soporta modo TIME_BASED cuando se configura explícitamente", () => {
+  const timeConfig = {
+    ...DEFAULT_TARIFF_CONFIG,
+    billingMode: "TIME_BASED",
+    carHourlyRate: 4000,
+    motorcycleHourlyRate: 1500,
+    gracePeriodMinutes: 10,
+    chargeFractionAfterHour: true,
+    fractionBlockMinutes: 15,
+  };
+
   const entered = "2026-11-13T10:00:00.000Z";
-  const exited = "2026-11-13T11:14:00.000Z"; // 74 minutos = 1 hora + 14 min (1 bloque de 15 min)
 
-  const carResult = calculateParkingFee(entered, exited, "CAR", DEFAULT_TARIFF_CONFIG);
+  // Gracia: 8 minutos -> 0
+  const grace = calculateParkingFee(entered, "2026-11-13T10:08:00.000Z", "CAR", timeConfig);
+  assert.equal(grace.amountDue, 0);
+  assert.equal(grace.isGracePeriod, true);
 
-  // Hora base = 3500. Bloques por hora = 4. Valor bloque = Math.round(3500 / 4) = 875.
-  // 1 hora + 1 bloque = 3500 + 875 = 4375.
-  assert.equal(carResult.totalMinutes, 74);
-  assert.equal(carResult.amountDue, 4375);
-  assert.ok(carResult.breakdown.includes("1 fracción(es)"));
-});
+  // 1 hora: 45 minutos -> 4000
+  const oneHour = calculateParkingFee(entered, "2026-11-13T10:45:00.000Z", "CAR", timeConfig);
+  assert.equal(oneHour.amountDue, 4000);
 
-test("calculateParkingFee calcula correctamente estancias prolongadas", () => {
-  const entered = "2026-11-13T10:00:00.000Z";
-  const exited = "2026-11-13T12:30:00.000Z"; // 150 minutos = 2 horas y media
-
-  const motoResult = calculateParkingFee(entered, exited, "MOTORCYCLE", DEFAULT_TARIFF_CONFIG);
-
-  // Moto: Hora base = 1800. Bloque 15m = 450.
-  // 1 hora (60m) + 90m extra (6 bloques de 15m).
-  // Total = 1800 + (6 * 450) = 1800 + 2700 = 4500.
-  assert.equal(motoResult.totalMinutes, 150);
-  assert.equal(motoResult.amountDue, 4500);
+  // Fracción: 75 minutos (1 hora + 1 fracción de 15 min de 1000) -> 5000
+  const fraction = calculateParkingFee(entered, "2026-11-13T11:15:00.000Z", "CAR", timeConfig);
+  assert.equal(fraction.amountDue, 5000);
 });

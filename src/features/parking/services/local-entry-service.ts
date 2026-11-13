@@ -121,18 +121,22 @@ export async function registerEntry(
     // 1. Guardar sesión
     await db.sessions.add(session);
 
-    // 2. Actualizar o crear registro histórico del vehículo
+    // 2. Actualizar o crear registro histórico del vehículo con datos de contacto
     const existingVehicle = await db.vehicles.get(normalizedPlate);
     if (existingVehicle) {
       await db.vehicles.update(normalizedPlate, {
         lastEnteredAt: session.enteredAt,
         type: session.vehicleCategory,
+        driverDocument: session.driverDocument ?? existingVehicle.driverDocument,
+        driverPhone: session.driverPhone ?? existingVehicle.driverPhone,
         totalVisits: (existingVehicle.totalVisits ?? 1) + 1,
       });
     } else {
       await db.vehicles.add({
         plateNormalized: normalizedPlate,
         type: session.vehicleCategory,
+        driverDocument: session.driverDocument,
+        driverPhone: session.driverPhone,
         createdAt: session.enteredAt,
         lastEnteredAt: session.enteredAt,
         totalVisits: 1,

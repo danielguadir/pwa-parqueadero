@@ -35,7 +35,7 @@ export async function saveTariffConfig(config: TariffConfig): Promise<void> {
  */
 export async function previewSessionFee(session: LocalParkingSession, exitTimeIso: string = new Date().toISOString()): Promise<FeeCalculationResult> {
   const config = await getTariffConfig();
-  return calculateParkingFee(session.enteredAt, exitTimeIso, session.vehicleCategory, config);
+  return calculateParkingFee(session.enteredAt, exitTimeIso, session.vehicleCategory, config, session.agreedRate);
 }
 
 /**
@@ -65,8 +65,9 @@ export async function processExitAndPayment(
   const exitTimeIso = new Date().toISOString();
   const fee = await previewSessionFee(session, exitTimeIso);
 
+  const basePrice = typeof input.customAmount === "number" && input.customAmount >= 0 ? input.customAmount : fee.amountDue;
   const discount = Math.max(0, input.discountCents ?? 0);
-  const finalAmount = Math.max(0, fee.amountDue - discount);
+  const finalAmount = Math.max(0, basePrice - discount);
 
   const paymentId = crypto.randomUUID();
   const operationCloseId = crypto.randomUUID();

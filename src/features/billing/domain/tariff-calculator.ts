@@ -1,28 +1,63 @@
 import type { VehicleCategory, TariffConfig, FeeCalculationResult } from "@/types/parking";
 
 export const DEFAULT_TARIFF_CONFIG: TariffConfig = {
-  carHourlyRate: 3500,           // $3.500 COP por hora de automóvil
-  motorcycleHourlyRate: 1800,    // $1.800 COP por hora de motocicleta
-  otherHourlyRate: 4500,         // $4.500 COP por hora de vehículo especial / pesado
-  gracePeriodMinutes: 10,        // 10 minutos de cortesía sin costo
-  chargeFractionAfterHour: true, // Fracciona bloques de 15 min después de la primera hora
-  fractionBlockMinutes: 15,      // Bloques de 15 minutos
+  billingMode: "FLAT",           // Cobro fijo por defecto, independiente del tiempo
+  carFlatRate: 4000,             // $4.000 COP tarifa fija automóvil
+  motorcycleFlatRate: 1500,      // $1.500 COP tarifa fija motocicleta
+  otherFlatRate: 6000,           // $6.000 COP otros
+  carHourlyRate: 4000,           // $4.000 COP si se usa por horas
+  motorcycleHourlyRate: 1500,    // $1.500 COP si se usa por horas
+  otherHourlyRate: 6000,
+  gracePeriodMinutes: 10,        // 10 minutos de cortesía
+  chargeFractionAfterHour: false,
+  fractionBlockMinutes: 15,
 };
 
 /**
- * Calcula de forma determinista el costo de estacionamiento según el tiempo transcurrido y la categoría.
+ * Calcula el costo de estacionamiento.
+ * Por defecto aplica cobro de tarifa fija ($4.000 carro / $1.500 moto) independientemente del tiempo.
  */
 export function calculateParkingFee(
   enteredAtIso: string,
   exitedAtIso: string = new Date().toISOString(),
   category: VehicleCategory = "CAR",
-  config: TariffConfig = DEFAULT_TARIFF_CONFIG
+  config: TariffConfig = DEFAULT_TARIFF_CONFIG,
+  agreedRate?: number
 ): FeeCalculationResult {
   const entered = new Date(enteredAtIso).getTime();
   const exited = new Date(exitedAtIso).getTime();
   const diffMs = Math.max(0, exited - entered);
   const totalMinutes = Math.max(1, Math.ceil(diffMs / (1000 * 60)));
 
+  // 1. Si existe tarifa acordada o el modo es tarifa fija (FLAT):
+  if (typeof agreedRate === "number" && agreedRate >= 0) {
+    return {
+      totalMinutes,
+      billableMinutes: totalMinutes,
+      amountDue: agreedRate,
+      isGracePeriod: false,
+      breakdown: `Tarifa única acordada al ingreso: $${agreedRate.toLocaleString("es-CO")} COP`,
+    };
+  }
+
+  if (config.billingMode === "FLAT") {
+    const flatRate =
+      category === "CAR"
+        ? config.carFlatRate
+        : category === "MOTORCYCLE"
+        ? config.motorcycleFlatRate
+        : config.otherFlatRate;
+
+    return {
+      totalMinutes,
+      billableMinutes: totalMinutes,
+      amountDue: flatRate,
+      isGracePeriod: false,
+      breakdown: `Tarifa única fija (${category === "CAR" ? "Automóvil" : category === "MOTORCYCLE" ? "Moto" : "Otro"}): $${flatRate.toLocaleString("es-CO")} COP`,
+    };
+  }
+
+  // 2. Modo alternativo por tiempo (si el administrador lo activa):
   const hourlyRate =
     category === "CAR"
       ? config.carHourlyRate
@@ -30,7 +65,6 @@ export function calculateParkingFee(
       ? config.motorcycleHourlyRate
       : config.otherHourlyRate;
 
-  // 1. Periodo de gracia / cortesía
   if (totalMinutes <= config.gracePeriodMinutes) {
     return {
       totalMinutes,
@@ -41,7 +75,6 @@ export function calculateParkingFee(
     };
   }
 
-  // 2. Primera hora (hasta 60 minutos)
   if (totalMinutes <= 60) {
     return {
       totalMinutes,
@@ -52,12 +85,9 @@ export function calculateParkingFee(
     };
   }
 
-  // 3. Más de una hora con fraccionamiento
   const extraMinutes = totalMinutes - 60;
-
   if (config.chargeFractionAfterHour && config.fractionBlockMinutes > 0) {
     const blocksPerHour = 60 / config.fractionBlockMinutes;
-    // Valor por bloque redondeado al entero más cercano
     const fractionPrice = Math.round(hourlyRate / blocksPerHour);
     const fractionBlocks = Math.ceil(extraMinutes / config.fractionBlockMinutes);
     const totalFractionFee = fractionBlocks * fractionPrice;
@@ -68,11 +98,10 @@ export function calculateParkingFee(
       billableMinutes: totalMinutes,
       amountDue,
       isGracePeriod: false,
-      breakdown: `1 hora ($${hourlyRate.toLocaleString("es-CO")}) + ${fractionBlocks} fracción(es) de ${config.fractionBlockMinutes}m ($${totalFractionFee.toLocaleString("es-CO")})`,
+      breakdown: `1 hora ($${hourlyRate.toLocaleString("es-CO")}) + ${fractionBlocks} fracción(es) ($${totalFractionFee.toLocaleString("es-CO")})`,
     };
   }
 
-  // Cobro por horas completas redondeadas hacia arriba
   const totalHours = Math.ceil(totalMinutes / 60);
   const amountDue = totalHours * hourlyRate;
 
