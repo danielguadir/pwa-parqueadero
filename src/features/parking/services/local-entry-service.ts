@@ -15,6 +15,22 @@ const DEFAULT_MOTO_CAPACITY = 30;
  */
 export async function getParkingCapacities(): Promise<{ carCapacity: number; motorcycleCapacity: number; totalCapacity: number }> {
   const db = getLocalDb();
+  const settingsConf = await db.configs.get("parking_settings");
+  if (settingsConf && typeof settingsConf.value === "string") {
+    try {
+      const parsed = JSON.parse(settingsConf.value);
+      if (typeof parsed.carCapacity === "number" && typeof parsed.motorcycleCapacity === "number") {
+        return {
+          carCapacity: parsed.carCapacity,
+          motorcycleCapacity: parsed.motorcycleCapacity,
+          totalCapacity: parsed.carCapacity + parsed.motorcycleCapacity,
+        };
+      }
+    } catch {
+      // Ignorar error de parseo y usar fallbacks
+    }
+  }
+
   const carConf = await db.configs.get("capacity_car");
   const motoConf = await db.configs.get("capacity_moto");
 

@@ -39,15 +39,22 @@ const modules = [
     title: "Reportes",
     href: "/reportes",
     description: "Métricas consolidadas de recaudo, ocupación y exportación",
-    badge: "Parte 3",
-    badgeColor: "bg-slate-800 text-slate-400 border-slate-700",
+    badge: "Operativo",
+    badgeColor: "bg-teal-950 text-teal-300 border-teal-800/40",
   },
   {
-    title: "Usuarios",
+    title: "Operadores",
     href: "/usuarios",
     description: "Administración de turnos, operadores y permisos",
-    badge: "Parte 3",
-    badgeColor: "bg-slate-800 text-slate-400 border-slate-700",
+    badge: "Operativo",
+    badgeColor: "bg-teal-950 text-teal-300 border-teal-800/40",
+  },
+  {
+    title: "Configuración",
+    href: "/configuracion",
+    description: "Modificar cupos máximos (carros/motos), nombre y datos de tiquetes",
+    badge: "Operativo",
+    badgeColor: "bg-teal-950 text-teal-300 border-teal-800/40",
   },
 ];
 
