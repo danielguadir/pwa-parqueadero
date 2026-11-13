@@ -2,6 +2,7 @@ import Dexie, { type Table } from "dexie";
 import type {
   LocalParkingSession,
   LocalVehicle,
+  LocalPayment,
   PendingOperation,
   LocalParkingConfig,
 } from "@/types/parking";
@@ -9,6 +10,7 @@ import type {
 export class ParkingLocalDb extends Dexie {
   sessions!: Table<LocalParkingSession, string>;
   vehicles!: Table<LocalVehicle, string>;
+  payments!: Table<LocalPayment, string>;
   pendingOperations!: Table<PendingOperation, string>;
   configs!: Table<LocalParkingConfig, string>;
 
@@ -20,11 +22,20 @@ export class ParkingLocalDb extends Dexie {
       pendingOperations: "id,deviceId,operationType,state,createdAt",
     });
 
-    // Esquema versión 2: soporte completo para sesiones, vehículos y configuración local
+    // Esquema versión 2: soporte para sesiones, vehículos y configuración local
     this.version(2).stores({
       pendingOperations: "id,deviceId,operationType,state,createdAt",
       sessions: "id, plateNormalized, status, [plateNormalized+status], vehicleCategory, enteredAt, syncState",
       vehicles: "plateNormalized, type, lastEnteredAt",
+      configs: "key",
+    });
+
+    // Esquema versión 3: soporte para salidas, pagos, zonas y reportes de facturación
+    this.version(3).stores({
+      pendingOperations: "id,deviceId,operationType,state,createdAt",
+      sessions: "id, plateNormalized, status, [plateNormalized+status], vehicleCategory, zone, enteredAt, exitedAt, syncState",
+      vehicles: "plateNormalized, type, lastEnteredAt",
+      payments: "id, sessionId, plateNormalized, method, createdAt, syncState",
       configs: "key",
     });
   }
@@ -35,7 +46,7 @@ let dbInstance: ParkingLocalDb | null = null;
 
 export function getLocalDb(): ParkingLocalDb {
   if (typeof window === "undefined") {
-    // Entorno de servidor: instanciación para evitar excepciones durante compilación/SSR
+    // Entorno de servidor: instanciación segura para evitar excepciones durante SSR
     return new ParkingLocalDb();
   }
   if (!dbInstance) {

@@ -83,12 +83,14 @@ export function buildEntryEntities(
   const isoDate = nowUtc.toISOString();
   const plateNormalized = input.plate.trim().toUpperCase().replace(/[\s\-_.]/g, "");
   const parkingLotId = input.parkingLotId ?? "default-lot";
+  const zone = input.zone ?? "ZONA_CENTRAL_A";
 
   const session: LocalParkingSession = {
     id: sessionId,
     parkingLotId,
     plateNormalized,
     vehicleCategory: input.vehicleCategory,
+    zone,
     enteredAt: isoDate,
     exitedAt: null,
     status: "OPEN",
@@ -107,6 +109,7 @@ export function buildEntryEntities(
       parkingLotId,
       plateNormalized,
       vehicleCategory: input.vehicleCategory,
+      zone,
       enteredAt: isoDate,
       notes: input.notes?.trim() || undefined,
     },
