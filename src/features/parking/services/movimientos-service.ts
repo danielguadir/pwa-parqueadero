@@ -497,11 +497,20 @@ export async function sincronizarConServidor(): Promise<{
       return { success: false, error: "Respuesta inválida del servidor" };
     }
 
-    // Reconciliar en la base de datos local
+    // Reconciliar en la base de datos local respetando la última actualización
     const movimientosServidor: MovimientoParqueadero[] = data.movimientos;
     await db.transaction("rw", db.movimientos, async () => {
       for (const m of movimientosServidor) {
-        await db.movimientos.put(m);
+        const local = await db.movimientos.get(m.id);
+        if (!local) {
+          await db.movimientos.put(m);
+        } else {
+          const fServer = new Date(m.fechaActualizacion || m.fechaIngreso).getTime();
+          const fLocal = new Date(local.fechaActualizacion || local.fechaIngreso).getTime();
+          if (fServer >= fLocal) {
+            await db.movimientos.put(m);
+          }
+        }
       }
     });
 

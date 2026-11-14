@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore, useState } from "react";
+import { useSyncExternalStore, useState, useEffect } from "react";
 import { cn } from "@/lib/utils/cn";
 import { sincronizarConServidor } from "@/features/parking/services/movimientos-service";
 
@@ -24,6 +24,19 @@ const estadoServidor = () => true;
 export function ConnectionStatus() {
   const enLinea = useSyncExternalStore(suscribir, estadoCliente, estadoServidor);
   const [sincronizando, setSincronizando] = useState(false);
+
+  // Sincronización automática periódica en segundo plano cada 8 segundos si hay red
+  useEffect(() => {
+    if (!enLinea) return;
+    // Sincronizar inmediatamente al conectar
+    sincronizarConServidor().catch(() => {});
+
+    const interval = setInterval(() => {
+      sincronizarConServidor().catch(() => {});
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [enLinea]);
 
   const handleManualSync = async () => {
     if (sincronizando) return;
