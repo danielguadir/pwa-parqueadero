@@ -40,15 +40,20 @@ export function generarUUID(): string {
 }
 
 /**
- * Genera un código aleatorio de 6 caracteres compuesto por letras mayúsculas y números
- * (ej: "K7M9P2", "A3X8B1"). Fácil de dictar, memorizar o buscar rápidamente.
+ * Genera un código aleatorio alfanumérico compacto (por defecto 4 caracteres)
+ * y le anexa la zona asignada (ej: "K7M9-SUR", "8XB4-NORTE").
+ * Fácil de dictar, memorizar o buscar rápidamente en salidas.
  */
-export function generarCodigoVehiculo(longitud = 6): string {
+export function generarCodigoVehiculo(longitud = 4, zona?: string): string {
   const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let codigo = "";
   for (let i = 0; i < longitud; i++) {
     const idx = Math.floor(Math.random() * caracteres.length);
     codigo += caracteres.charAt(idx);
+  }
+  if (zona && zona.trim().length > 0) {
+    const zonaLimpia = zona.trim().toUpperCase().replace(/[\s\-_]/g, "");
+    return `${codigo}-${zonaLimpia}`;
   }
   return codigo;
 }

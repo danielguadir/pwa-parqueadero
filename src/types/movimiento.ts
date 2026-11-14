@@ -1,10 +1,20 @@
 export type TipoVehiculo = "CARRO" | "MOTO";
 export type EstadoVehiculo = "DENTRO" | "RETIRADO";
 export type EstadoPago = "PAGADO" | "PENDIENTE";
+export type ZonaParqueadero = "CENTRAL" | "NORTE" | "SUR" | "ORIENTE" | "OCCIDENTE";
+
+export const ZONAS_PARQUEADERO: ZonaParqueadero[] = [
+  "CENTRAL",
+  "NORTE",
+  "SUR",
+  "ORIENTE",
+  "OCCIDENTE",
+];
 
 export interface MovimientoParqueadero {
   id: string;                      // UUID único
-  codigo: string;                  // Código único de 6 caracteres alfanumérico (ej: K7M9P2)
+  codigo: string;                  // Código único compuesto: 4 caracteres + Zona (ej: K7M9-SUR)
+  zona?: string;                   // Zona asignada (CENTRAL | NORTE | SUR | ORIENTE | OCCIDENTE)
   placa: string;                   // Placa tal como la escribe el operador
   placaNormalizada: string;        // Mayúsculas, sin espacios ni guiones (índice)
   tipoVehiculo: TipoVehiculo;       // CARRO | MOTO
@@ -44,6 +54,7 @@ export interface RegistroIngresoInput {
   nombre: string;
   celular?: string;
   cedula?: string;
+  zona?: ZonaParqueadero | string;
 }
 
 export interface RegistroRetiroInput {

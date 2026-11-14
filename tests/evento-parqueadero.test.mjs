@@ -196,14 +196,13 @@ test("rendimiento: filtrado, búsqueda y agregación sobre 2.000 movimientos tom
   assert.ok(duracionMs < 50, `La operación tardó ${duracionMs.toFixed(2)}ms, debe ser menor a 50ms`);
 });
 
-test("generarCodigoVehiculo produce códigos alfanuméricos únicos de 6 caracteres", () => {
+test("generarCodigoVehiculo produce códigos alfanuméricos únicos de 4 caracteres con zona", () => {
   const codigos = new Set();
   for (let i = 0; i < 100; i++) {
-    const c = generarCodigoVehiculo(6);
-    assert.equal(c.length, 6);
-    assert.match(c, /^[A-Z0-9]{6}$/);
+    const c = generarCodigoVehiculo(4, "SUR");
+    assert.match(c, /^[A-Z0-9]{4}-SUR$/);
     codigos.add(c);
   }
-  // En 100 generaciones aleatorias no debe haber colisiones
+  // En 100 generaciones aleatorias con zona no debe haber colisiones
   assert.equal(codigos.size, 100);
 });

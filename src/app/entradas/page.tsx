@@ -9,7 +9,8 @@ import {
   normalizarPlaca,
   CONFIG_INICIAL,
 } from "@/features/parking/services/movimientos-service";
-import type { TipoVehiculo, ConfiguracionParqueadero } from "@/types/movimiento";
+import type { TipoVehiculo, ConfiguracionParqueadero, ZonaParqueadero } from "@/types/movimiento";
+import { ZONAS_PARQUEADERO } from "@/types/movimiento";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Alert } from "@/components/ui/alert";
@@ -81,6 +82,7 @@ function FormularioIngreso() {
   const [nombre, setNombre] = useState("");
   const [celular, setCelular] = useState("");
   const [cedula, setCedula] = useState("");
+  const [zona, setZona] = useState<ZonaParqueadero>("CENTRAL");
 
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState<Aviso | null>(null);
@@ -144,6 +146,7 @@ function FormularioIngreso() {
         nombre: nombre.trim(),
         celular: celular.trim() || undefined,
         cedula: cedula.trim() || undefined,
+        zona,
       });
 
       if (!res.success || !res.movimiento) {
@@ -154,7 +157,7 @@ function FormularioIngreso() {
       const m = res.movimiento;
       setAviso({
         tono: "success",
-        texto: `Ingreso guardado · Código #${m.codigo}: ${m.placaNormalizada} · ${nombreTipoVehiculo(m.tipoVehiculo)} · ${formatearPesos(m.tarifaAplicada)} · ${formatearHora(m.fechaIngreso)}`,
+        texto: `Ingreso guardado · Código #${m.codigo}: ${m.placaNormalizada} · ${nombreTipoVehiculo(m.tipoVehiculo)} · Zona ${m.zona || zona} · ${formatearPesos(m.tarifaAplicada)} · ${formatearHora(m.fechaIngreso)}`,
       });
       setPlaca("");
       setNombre("");
@@ -215,6 +218,28 @@ function FormularioIngreso() {
             onChange={(e) => setNombre(e.target.value)}
             placeholder="Nombre completo"
           />
+
+          {/* Selector de Zona */}
+          <div className="space-y-1.5">
+            <label htmlFor="zona" className="block text-xs font-semibold text-ink-muted">
+              Zona de Parqueadero *
+            </label>
+            <select
+              id="zona"
+              value={zona}
+              onChange={(e) => setZona(e.target.value as ZonaParqueadero)}
+              className="w-full rounded-md border border-line bg-canvas px-3.5 py-2.5 text-sm font-semibold text-ink shadow-sm transition hover:border-ink-soft focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              {ZONAS_PARQUEADERO.map((z) => (
+                <option key={z} value={z}>
+                  Zona {z}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-ink-muted">
+              Se generará un código de 4 caracteres con esta zona (ej: #K7M9-{zona}).
+            </p>
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field

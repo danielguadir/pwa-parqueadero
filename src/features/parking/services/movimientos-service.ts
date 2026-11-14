@@ -122,10 +122,12 @@ export async function registrarIngreso(input: RegistroIngresoInput): Promise<{
   const tarifaAplicada = input.tipoVehiculo === "CARRO" ? config.tarifaCarro : config.tarifaMoto;
 
   const ahoraIso = new Date().toISOString();
-  const codigo = generarCodigoVehiculo(6);
+  const zona = (input.zona || "CENTRAL").trim().toUpperCase();
+  const codigo = generarCodigoVehiculo(4, zona);
   const movimiento: MovimientoParqueadero = {
     id: generarUUID(),
     codigo,
+    zona,
     placa,
     placaNormalizada,
     tipoVehiculo: input.tipoVehiculo,
@@ -176,7 +178,8 @@ export async function buscarParaRetiro(termino: string): Promise<MovimientoParqu
       const matchPlaca = m.placaNormalizada.includes(qPlaca);
       const matchNombre = m.nombreNormalizado.includes(q);
       const matchCedula = m.cedula ? m.cedula.includes(termino.trim()) : false;
-      return matchCodigo || matchPlaca || matchNombre || matchCedula;
+      const matchZona = m.zona ? m.zona.toLowerCase().includes(q) : false;
+      return matchCodigo || matchPlaca || matchNombre || matchCedula || matchZona;
     });
   }
 
