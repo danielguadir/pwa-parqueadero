@@ -7,6 +7,7 @@ import {
   setActiveOperator,
   ensureInitialOperator,
 } from "@/lib/db/local-db";
+import { generarUUID } from "@/lib/utils/uuid";
 import type { AppOperator, AppRole } from "@/types/parking";
 
 export function OperatorsManager() {
@@ -58,7 +59,7 @@ export function OperatorsManager() {
     if (!name.trim()) return;
 
     const newOp: AppOperator = {
-      id: crypto.randomUUID(),
+      id: generarUUID(),
       name: name.trim(),
       role,
       document: document.trim() || undefined,

@@ -1,4 +1,5 @@
 import Dexie, { type Table } from "dexie";
+import { generarUUID } from "../utils/uuid.ts";
 import type {
   LocalParkingSession,
   LocalVehicle,
@@ -93,7 +94,7 @@ export function getOrCreateDeviceId(): string {
   const KEY = "parking_device_id_v1";
   let id = localStorage.getItem(KEY);
   if (!id) {
-    id = crypto.randomUUID();
+    id = generarUUID();
     localStorage.setItem(KEY, id);
   }
   return id;
@@ -146,7 +147,7 @@ export async function ensureInitialOperator(): Promise<AppOperator> {
   const count = await db.operators.count();
   if (count === 0) {
     const admin: AppOperator = {
-      id: crypto.randomUUID(),
+      id: generarUUID(),
       name: "Administrador General",
       role: "ADMIN",
       isActive: true,

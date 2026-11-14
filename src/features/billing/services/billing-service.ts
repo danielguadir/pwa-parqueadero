@@ -1,4 +1,5 @@
 import { getLocalDb, getOrCreateDeviceId } from "@/lib/db/local-db";
+import { generarUUID } from "@/lib/utils/uuid";
 import type {
   LocalParkingSession,
   LocalPayment,
@@ -69,9 +70,9 @@ export async function processExitAndPayment(
   const discount = Math.max(0, input.discountCents ?? 0);
   const finalAmount = Math.max(0, basePrice - discount);
 
-  const paymentId = crypto.randomUUID();
-  const operationCloseId = crypto.randomUUID();
-  const operationPaymentId = crypto.randomUUID();
+  const paymentId = generarUUID();
+  const operationCloseId = generarUUID();
+  const operationPaymentId = generarUUID();
   const deviceId = getOrCreateDeviceId();
 
   const payment: LocalPayment = {

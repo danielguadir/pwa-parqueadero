@@ -1,4 +1,5 @@
 import { getLocalDb } from "../../../lib/db/local-db.ts";
+import { generarUUID } from "../../../lib/utils/uuid.ts";
 import type {
   MovimientoParqueadero,
   ConfiguracionParqueadero,
@@ -122,7 +123,7 @@ export async function registrarIngreso(input: RegistroIngresoInput): Promise<{
 
   const ahoraIso = new Date().toISOString();
   const movimiento: MovimientoParqueadero = {
-    id: crypto.randomUUID(),
+    id: generarUUID(),
     placa,
     placaNormalizada,
     tipoVehiculo: input.tipoVehiculo,

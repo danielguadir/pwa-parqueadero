@@ -1,26 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+
+function subscribeOnline(callback: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
+
+function getSnapshot() {
+  return typeof navigator !== "undefined" ? navigator.onLine : true;
+}
+
+function getServerSnapshot() {
+  return true;
+}
 
 export function SyncStatusIndicator() {
-  const [isOnline, setIsOnline] = useState<boolean>(() => {
-    return typeof navigator !== "undefined" ? navigator.onLine : true;
-  });
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+  const isOnline = useSyncExternalStore(subscribeOnline, getSnapshot, getServerSnapshot);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-900/90 px-3.5 py-2 text-xs shadow-sm">

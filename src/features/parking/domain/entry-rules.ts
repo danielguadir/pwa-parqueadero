@@ -1,3 +1,4 @@
+import { generarUUID } from "../../../lib/utils/uuid.ts";
 import type {
   LocalParkingSession,
   PendingOperation,
@@ -88,8 +89,8 @@ export function buildEntryEntities(
   deviceId: string,
   nowUtc: Date = new Date()
 ): { session: LocalParkingSession; operation: PendingOperation } {
-  const sessionId = crypto.randomUUID();
-  const operationId = crypto.randomUUID();
+  const sessionId = generarUUID();
+  const operationId = generarUUID();
   const isoDate = nowUtc.toISOString();
   const plateNormalized = input.plate.trim().toUpperCase().replace(/[\s\-_.]/g, "");
   const parkingLotId = input.parkingLotId ?? "default-lot";
