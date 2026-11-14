@@ -3,13 +3,9 @@ const CACHE_NAME = "parkingcontrol-v1";
 
 const PRECACHE_URLS = [
   "/",
-  "/dashboard",
   "/entradas",
   "/salidas",
   "/historial",
-  "/tarifas",
-  "/reportes",
-  "/usuarios",
   "/configuracion",
   "/manifest.webmanifest",
   "/icons/parking.svg",
@@ -94,8 +90,6 @@ self.addEventListener("fetch", (event) => {
         .catch(async () => {
           const cached = await caches.match(request);
           if (cached) return cached;
-          const dashboardFallback = await caches.match("/dashboard");
-          if (dashboardFallback) return dashboardFallback;
           const rootFallback = await caches.match("/");
           return rootFallback || new Response("Sin conexión", { status: 503, statusText: "Offline" });
         })

@@ -3,7 +3,17 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
-const expected = ["README.md", "package.json", "src/app/dashboard/page.tsx", "src/app/api/health/route.ts", "prisma/schema.prisma", "public/manifest.webmanifest", "docs/FASES.md"];
+const expected = [
+  "README.md",
+  "package.json",
+  "src/app/page.tsx",
+  "src/app/entradas/page.tsx",
+  "src/app/salidas/page.tsx",
+  "src/app/historial/page.tsx",
+  "src/app/configuracion/page.tsx",
+  "public/manifest.webmanifest",
+  "public/sw.js",
+];
 test("archivos básicos presentes", () => {
   for (const p of expected) assert.ok(existsSync(join(root, p)), `Falta ${p}`);
 });

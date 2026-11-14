@@ -1,20 +1,26 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
 import {
   buscarParaRetiro,
   registrarRetiro,
   marcarPagoPendiente,
 } from "@/features/parking/services/movimientos-service";
 import type { MovimientoParqueadero, EstadoPago } from "@/types/movimiento";
+import { Card } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { PagoBadge, VehiculoBadge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils/cn";
+import { formatearFechaHora, formatearPesos, nombreTipoVehiculo } from "@/lib/utils/formato";
 
 export default function SalidasPage() {
   const [termino, setTermino] = useState("");
   const [resultados, setResultados] = useState<MovimientoParqueadero[]>([]);
   const [seleccionado, setSeleccionado] = useState<MovimientoParqueadero | null>(null);
 
-  const [procesando, setProcesando] = useState<boolean>(false);
+  const [procesando, setProcesando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [errorRetiro, setErrorRetiro] = useState<string | null>(null);
 
@@ -22,11 +28,9 @@ export default function SalidasPage() {
     try {
       const res = await buscarParaRetiro(query);
       setResultados(res);
-      // Si el seleccionado sigue en los resultados, actualizarlo; de lo contrario deseleccionar si se retiró
       setSeleccionado((prev) => {
         if (!prev) return null;
-        const actualizado = res.find((r) => r.id === prev.id);
-        return actualizado || null;
+        return res.find((r) => r.id === prev.id) || null;
       });
     } catch (err) {
       console.error("Error en búsqueda:", err);
@@ -54,17 +58,16 @@ export default function SalidasPage() {
       const res = await registrarRetiro(seleccionado.id, estadoPago);
       if (!res.success || !res.movimiento) {
         setErrorRetiro(res.error || "No se pudo procesar el retiro.");
-        setProcesando(false);
         return;
       }
 
       setMensajeExito(
-        `✓ Retiro completado para placa ${res.movimiento.placaNormalizada}: Estado de pago [${res.movimiento.estadoPago}]`
+        `Retiro completado: Placa ${res.movimiento.placaNormalizada} · Estado de pago: [${res.movimiento.estadoPago}]`
       );
       setSeleccionado(null);
       await ejecutarBusqueda(termino);
     } catch (err) {
-      setErrorRetiro(err instanceof Error ? err.message : "Error al guardar retiro en IndexedDB");
+      setErrorRetiro(err instanceof Error ? err.message : "Error al guardar retiro en el dispositivo");
     } finally {
       setProcesando(false);
     }
@@ -80,232 +83,187 @@ export default function SalidasPage() {
       const res = await marcarPagoPendiente(m.id);
       if (!res.success || !res.movimiento) {
         setErrorRetiro(res.error || "No se pudo actualizar el pago.");
-        setProcesando(false);
         return;
       }
 
-      setMensajeExito(`✓ Pago registrado para placa ${res.movimiento.placaNormalizada}. Salida histórica conservada.`);
+      setMensajeExito(`Pago registrado para placa ${res.movimiento.placaNormalizada}. Salida histórica conservada.`);
       setSeleccionado(null);
       await ejecutarBusqueda(termino);
     } catch (err) {
-      setErrorRetiro(err instanceof Error ? err.message : "Error al actualizar pago.");
+      setErrorRetiro(err instanceof Error ? err.message : "Error al actualizar pago en el dispositivo");
     } finally {
       setProcesando(false);
     }
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      {/* Encabezado */}
-      <div className="flex items-center justify-between border-b border-slate-700/60 pb-3">
-        <div>
-          <h1 className="text-2xl font-black text-white">Retiro de Vehículo</h1>
-          <p className="text-xs text-slate-400">Buscar por placa, nombre o cédula para cobrar y dar salida</p>
-        </div>
-        <Link
-          href="/"
-          className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-slate-700"
-        >
-          ← Volver
-        </Link>
-      </div>
-
-      {/* Mensajes de Confirmación y Error */}
+    <div className="mx-auto max-w-3xl space-y-4 sm:space-y-5">
       {mensajeExito && (
-        <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/40 p-4 text-sm font-bold text-emerald-300">
+        <Alert tone="success" title="✓">
           {mensajeExito}
-        </div>
+        </Alert>
       )}
 
       {errorRetiro && (
-        <div className="rounded-2xl border border-rose-500/40 bg-rose-950/40 p-4 text-sm font-bold text-rose-300">
-          ❌ {errorRetiro}
-        </div>
+        <Alert tone="error" title="Error:">
+          {errorRetiro}
+        </Alert>
       )}
 
-      {/* Barra de Búsqueda Rápida */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-xl">
-        <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
-          Búsqueda Rápida (Placa, Nombre o Cédula)
-        </label>
+      {/* Buscador */}
+      <Card
+        title="Retiro de Vehículo"
+        subtitle="Busca por placa, nombre o cédula para cobrar y dar salida al vehículo"
+      >
         <div className="relative">
-          <input
-            type="text"
+          <Field
+            id="buscar-vehiculo"
+            label="Búsqueda rápida"
+            icon="buscar"
             autoFocus
+            autoComplete="off"
             value={termino}
             onChange={(e) => setTermino(e.target.value)}
             placeholder="Escribe la placa (ej: ABC123), nombre o cédula..."
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-base font-semibold text-white placeholder-slate-600 focus:border-amber-400 focus:outline-none"
+            inputClassName="pr-20 text-base"
           />
           {termino && (
             <button
               type="button"
               onClick={() => setTermino("")}
-              className="absolute right-3 top-3 text-xs font-bold text-slate-400 hover:text-white"
+              className="absolute right-3 top-9 text-xs font-semibold text-ink-muted hover:text-ink"
             >
-              ✕ Limpiar
+              Limpiar
             </button>
           )}
         </div>
-      </div>
+      </Card>
 
-      {/* Modal / Panel de Detalle del Vehículo Seleccionado */}
+      {/* Detalle del vehículo seleccionado */}
       {seleccionado && (
-        <div className="rounded-2xl border-2 border-amber-500/60 bg-slate-900 p-5 shadow-2xl">
-          <div className="flex items-start justify-between border-b border-slate-800 pb-3">
-            <div>
-              <span className="rounded bg-amber-500/20 px-2 py-0.5 font-mono text-xs font-bold text-amber-300 uppercase">
-                {seleccionado.tipoVehiculo}
-              </span>
-              <h2 className="mt-1 font-mono text-3xl font-black text-white">
-                {seleccionado.placaNormalizada}
-              </h2>
-              <p className="text-sm font-semibold text-slate-300">{seleccionado.nombre}</p>
-              {seleccionado.cedula && <p className="text-xs text-slate-400">CC: {seleccionado.cedula}</p>}
-              {seleccionado.celular && <p className="text-xs text-slate-400">Tel: {seleccionado.celular}</p>}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setSeleccionado(null)}
-              className="rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-300 hover:bg-slate-700"
-            >
+        <Card
+          className="border-2 border-primary/40 shadow-md"
+          title={`Vehículo: ${seleccionado.placaNormalizada}`}
+          subtitle={`${nombreTipoVehiculo(seleccionado.tipoVehiculo)} · ${seleccionado.nombre}`}
+          actions={
+            <Button variant="secondary" size="md" onClick={() => setSeleccionado(null)}>
               Cerrar
-            </button>
-          </div>
+            </Button>
+          }
+        >
+          <div className="grid gap-3 rounded-lg bg-canvas p-3 text-sm sm:grid-cols-2">
+            <div>
+              <span className="text-xs text-ink-muted">Responsable:</span>
+              <p className="font-semibold text-ink">{seleccionado.nombre}</p>
+              {seleccionado.cedula && <p className="text-xs text-ink-muted">CC: {seleccionado.cedula}</p>}
+              {seleccionado.celular && <p className="text-xs text-ink-muted">Tel: {seleccionado.celular}</p>}
+            </div>
 
-          <div className="my-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-950 p-3 text-xs">
             <div>
-              <span className="text-slate-500 font-medium">Ingreso:</span>
-              <p className="font-semibold text-slate-200">
-                {new Date(seleccionado.fechaIngreso).toLocaleString("es-CO")}
+              <span className="text-xs text-ink-muted">Ingreso:</span>
+              <p className="font-semibold text-ink">{formatearFechaHora(seleccionado.fechaIngreso)}</p>
+              <p className="mt-1 text-xs text-ink-muted">
+                Tarifa fija: <strong className="text-ink">{formatearPesos(seleccionado.tarifaAplicada)}</strong>
               </p>
             </div>
-            <div>
-              <span className="text-slate-500 font-medium">Tarifa Fija:</span>
-              <p className="font-mono text-lg font-black text-emerald-400">
-                ${seleccionado.tarifaAplicada.toLocaleString("es-CO")} COP
-              </p>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-ink-muted">Estado vehículo:</span>
+              <VehiculoBadge estado={seleccionado.estadoVehiculo} />
             </div>
-            <div>
-              <span className="text-slate-500 font-medium">Estado del Vehículo:</span>
-              <p className="font-bold text-white">
-                {seleccionado.estadoVehiculo === "DENTRO" ? "🟢 DENTRO" : "⚪ RETIRADO"}
-              </p>
-            </div>
-            <div>
-              <span className="text-slate-500 font-medium">Estado del Pago:</span>
-              <p className="font-bold">
-                {seleccionado.estadoPago === "PAGADO" ? (
-                  <span className="text-emerald-400">✓ PAGADO</span>
-                ) : (
-                  <span className="text-rose-400">⏳ PENDIENTE</span>
-                )}
-              </p>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-ink-muted">Estado pago:</span>
+              <PagoBadge estado={seleccionado.estadoPago} />
             </div>
           </div>
 
-          {/* Opciones de Acción */}
-          {seleccionado.estadoVehiculo === "DENTRO" ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                disabled={procesando}
-                onClick={() => handleRetiro("PAGADO")}
-                className="rounded-xl bg-emerald-600 py-3.5 text-sm font-black uppercase text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 active:scale-98 disabled:opacity-50"
-              >
-                {procesando ? "Guardando..." : "1. RETIRAR — PAGADO"}
-              </button>
-
-              <button
-                type="button"
-                disabled={procesando}
-                onClick={() => handleRetiro("PENDIENTE")}
-                className="rounded-xl bg-rose-700 py-3.5 text-sm font-black uppercase text-white shadow-lg shadow-rose-950/30 transition hover:bg-rose-600 active:scale-98 disabled:opacity-50"
-              >
-                {procesando ? "Guardando..." : "2. RETIRAR — PAGO PENDIENTE"}
-              </button>
-            </div>
-          ) : seleccionado.estadoPago === "PENDIENTE" ? (
-            <div className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-4 text-center">
-              <p className="text-xs text-rose-300 font-medium mb-3">
-                Este vehículo ya fue retirado, pero tiene el pago PENDIENTE.
-              </p>
-              <button
-                type="button"
-                disabled={procesando}
-                onClick={() => handleMarcarPagado(seleccionado)}
-                className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-black uppercase text-white hover:bg-emerald-500"
-              >
-                {procesando ? "Guardando..." : "Marcar como PAGADO ahora"}
-              </button>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-center text-xs text-slate-400">
-              Vehículo retirado y pagado previamente. No requiere acciones.
-            </div>
-          )}
-        </div>
+          <div className="mt-4">
+            {seleccionado.estadoVehiculo === "DENTRO" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Button
+                  variant="success"
+                  size="lg"
+                  disabled={procesando}
+                  onClick={() => handleRetiro("PAGADO")}
+                  className="w-full"
+                >
+                  {procesando ? "Guardando..." : "1. Retirar — PAGADO"}
+                </Button>
+                <Button
+                  variant="danger"
+                  size="lg"
+                  disabled={procesando}
+                  onClick={() => handleRetiro("PENDIENTE")}
+                  className="w-full"
+                >
+                  {procesando ? "Guardando..." : "2. Retirar — PAGO PENDIENTE"}
+                </Button>
+              </div>
+            ) : seleccionado.estadoPago === "PENDIENTE" ? (
+              <div className="space-y-3 rounded-lg border border-warning/40 bg-warning-soft p-4 text-center">
+                <p className="text-sm font-medium text-warning">
+                  Este vehículo ya fue retirado, pero aún tiene el pago PENDIENTE.
+                </p>
+                <Button
+                  variant="success"
+                  size="lg"
+                  disabled={procesando}
+                  onClick={() => handleMarcarPagado(seleccionado)}
+                  className="w-full sm:w-auto"
+                >
+                  {procesando ? "Guardando..." : "Marcar como PAGADO ahora"}
+                </Button>
+              </div>
+            ) : (
+              <Alert tone="info">Este vehículo ya fue retirado y pagado previamente. No requiere acciones.</Alert>
+            )}
+          </div>
+        </Card>
       )}
 
-      {/* Lista de Resultados de Vehículos */}
-      <div className="space-y-3">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-          Resultados ({resultados.length} vehículos)
-        </h2>
-
+      {/* Resultados */}
+      <Card
+        title={`Resultados (${resultados.length})`}
+        subtitle="Selecciona un vehículo para retirarlo o marcar su pago"
+      >
         {resultados.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-center text-xs text-slate-500">
+          <p className="py-8 text-center text-sm text-ink-muted">
             No se encontraron vehículos que coincidan con la búsqueda.
-          </div>
+          </p>
         ) : (
           <div className="grid gap-2.5 sm:grid-cols-2">
             {resultados.map((m) => {
-              const estaDentro = m.estadoVehiculo === "DENTRO";
-              const esPagado = m.estadoPago === "PAGADO";
-              const esSeleccionado = seleccionado?.id === m.id;
-
+              const activo = seleccionado?.id === m.id;
               return (
-                <div
+                <button
                   key={m.id}
+                  type="button"
                   onClick={() => setSeleccionado(m)}
-                  className={`cursor-pointer rounded-2xl border p-4 transition ${
-                    esSeleccionado
-                      ? "border-amber-400 bg-slate-900 shadow-md shadow-amber-500/10"
-                      : "border-slate-800 bg-slate-900/70 hover:bg-slate-900"
-                  }`}
+                  className={cn(
+                    "flex flex-col rounded-lg border p-3.5 text-left transition touch-manipulation active:scale-[0.99]",
+                    activo
+                      ? "border-primary bg-primary-soft/60 shadow-sm ring-2 ring-primary/30"
+                      : "border-line bg-surface hover:border-ink-soft hover:bg-canvas"
+                  )}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xl font-black text-white">
-                      {m.placaNormalizada}
-                    </span>
-                    <span
-                      className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                        estaDentro
-                          ? "bg-emerald-950 text-emerald-400 border border-emerald-800/40"
-                          : "bg-slate-800 text-slate-400 border border-slate-700"
-                      }`}
-                    >
-                      {estaDentro ? "DENTRO" : "RETIRADO"}
-                    </span>
+                    <span className="font-mono text-xl font-bold tracking-wider text-ink">{m.placaNormalizada}</span>
+                    <VehiculoBadge estado={m.estadoVehiculo} />
                   </div>
-
-                  <p className="mt-1 text-xs font-semibold text-slate-200 truncate">{m.nombre}</p>
-
-                  <div className="mt-2 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-400">
-                      {m.tipoVehiculo === "CARRO" ? "🚗 Carro" : "🏍️ Moto"} · ${m.tarifaAplicada.toLocaleString("es-CO")}
+                  <p className="mt-1 truncate text-sm font-medium text-ink">{m.nombre}</p>
+                  <div className="mt-2 flex items-center justify-between text-xs text-ink-muted">
+                    <span>
+                      {nombreTipoVehiculo(m.tipoVehiculo)} · {formatearPesos(m.tarifaAplicada)}
                     </span>
-                    <span className={`font-bold ${esPagado ? "text-emerald-400" : "text-rose-400"}`}>
-                      {esPagado ? "PAGADO" : "PENDIENTE"}
-                    </span>
+                    <PagoBadge estado={m.estadoPago} />
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

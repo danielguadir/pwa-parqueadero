@@ -1,52 +1,137 @@
+"use client";
+
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { SyncStatusIndicator } from "./sync-status-indicator";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils/cn";
+import { Icon, type IconName } from "@/components/ui/icon";
+import { ConnectionStatus } from "./connection-status";
 
-const menu = [
-  ["/", "Inicio", "🏠"],
-  ["/entradas", "Ingresar Vehículo", "🚗"],
-  ["/salidas", "Retirar Vehículo", "💳"],
-  ["/historial", "Historial y Pagos", "📜"],
-  ["/configuracion", "Configuración y Respaldos", "⚙️"],
-] as const;
+interface NavItem {
+  href: string;
+  label: string;
+  icon: IconName;
+}
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+const NAV_PRINCIPAL: NavItem[] = [
+  { href: "/", label: "Inicio", icon: "home" },
+  { href: "/entradas", label: "Ingresar Vehículo", icon: "entrada" },
+  { href: "/salidas", label: "Retirar Vehículo", icon: "salida" },
+  { href: "/historial", label: "Historial y Pagos", icon: "lista" },
+];
+
+const NAV_INFERIOR: NavItem = { href: "/configuracion", label: "Configuración", icon: "ajustes" };
+
+const TITULOS: Record<string, string> = {
+  "/": "Inicio",
+  "/entradas": "Ingreso de Vehículo",
+  "/salidas": "Retiro de Vehículo",
+  "/historial": "Historial y Pagos",
+  "/configuracion": "Configuración y Respaldos",
+};
+
+function NavLink({ item, activo, onNavigate }: { item: NavItem; activo: boolean; onNavigate: () => void }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 md:flex">
-      {/* Barra lateral / Navegación */}
-      <aside className="border-b border-slate-800 bg-slate-900 p-4 md:min-h-screen md:w-64 md:border-b-0 md:border-r md:p-6">
-        <div className="flex items-center justify-between md:block">
-          <div>
-            <Link href="/" className="text-xl font-black tracking-tight text-white flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500 font-bold text-slate-950 shadow-md shadow-teal-500/20">
-                P
-              </span>
-              ParkingControl
-            </Link>
-            <p className="mt-1 text-xs font-semibold text-teal-400">PWA Evento 2 Días</p>
-          </div>
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={activo ? "page" : undefined}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition",
+        activo
+          ? "bg-gradient-to-r from-primary-strong to-primary-hover text-white shadow-md"
+          : "text-ink-muted hover:bg-canvas hover:text-ink"
+      )}
+    >
+      <Icon name={item.icon} className="h-5 w-5 shrink-0" />
+      <span>{item.label}</span>
+    </Link>
+  );
+}
+
+export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const cerrarMenu = () => setMenuAbierto(false);
+
+  return (
+    <div className="min-h-dvh bg-canvas md:flex">
+      {/* Fondo oscuro del menú en celular */}
+      {menuAbierto && (
+        <button
+          type="button"
+          aria-label="Cerrar menú"
+          onClick={cerrarMenu}
+          className="fixed inset-0 z-30 bg-ink/40 md:hidden"
+        />
+      )}
+
+      {/* Barra lateral */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-line bg-surface p-4 transition-transform md:sticky md:top-0 md:h-dvh md:translate-x-0",
+          menuAbierto ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="mb-6 flex items-center justify-between px-2 pt-2">
+          <Link href="/" onClick={cerrarMenu} className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
+              P
+            </span>
+            <span className="text-lg font-bold text-ink">ParkingControl</span>
+          </Link>
+          <button
+            type="button"
+            onClick={cerrarMenu}
+            aria-label="Ocultar menú"
+            className="rounded-md p-1 text-ink hover:bg-canvas md:hidden"
+          >
+            <Icon name="chevronIzquierda" className="h-5 w-5" />
+          </button>
         </div>
 
-        <nav aria-label="Navegación principal" className="mt-5 grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:mt-8 md:grid-cols-1">
-          {menu.map(([href, label, icon]) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-300 transition hover:bg-slate-800 hover:text-white focus-visible:outline-2 focus-visible:outline-teal-400 md:text-sm"
-            >
-              <span className="text-base">{icon}</span>
-              <span>{label}</span>
-            </Link>
+        <nav aria-label="Navegación principal" className="flex flex-1 flex-col gap-1">
+          {NAV_PRINCIPAL.map((item) => (
+            <NavLink key={item.href} item={item} activo={pathname === item.href} onNavigate={cerrarMenu} />
           ))}
         </nav>
+
+        <div className="border-t border-line pt-3">
+          <NavLink item={NAV_INFERIOR} activo={pathname === NAV_INFERIOR.href} onNavigate={cerrarMenu} />
+        </div>
       </aside>
 
-      {/* Contenido principal */}
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 sm:px-6 md:px-8 md:py-8">
-        <div className="mb-6">
-          <SyncStatusIndicator />
-        </div>
-        {children}
-      </main>
+      {/* Área principal */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-line bg-surface/95 px-4 shadow-sm backdrop-blur sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMenuAbierto(true)}
+              aria-label="Abrir menú"
+              className="rounded-md p-2 text-ink hover:bg-canvas md:hidden"
+            >
+              <Icon name="menu" className="h-6 w-6" />
+            </button>
+            <span className="truncate text-base font-semibold text-ink">{TITULOS[pathname] ?? "ParkingControl"}</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <ConnectionStatus />
+            <div className="hidden items-center gap-2 sm:flex">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-canvas text-sm font-semibold text-ink">
+                O
+              </span>
+              <div className="leading-tight">
+                <p className="text-sm font-semibold text-ink">Operador</p>
+                <p className="text-xs text-ink-muted">PARQUEADERO</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="mx-auto w-full max-w-5xl flex-1 px-3 py-4 sm:px-6 sm:py-6">{children}</main>
+      </div>
     </div>
   );
 }

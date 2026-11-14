@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Icono de parqueadero">
-  <rect width="192" height="192" rx="34" fill="#0b1220"/>
-  <rect x="26" y="26" width="140" height="140" rx="22" fill="#0f766e"/>
+  <rect width="192" height="192" rx="34" fill="#1e40af"/>
+  <rect x="26" y="26" width="140" height="140" rx="22" fill="#2563eb"/>
   <path fill="#ffffff" d="M71 51h41c25 0 39 14 39 37 0 24-16 38-41 38H93v23H71V51zm22 20v35h17c12 0 19-6 19-17 0-12-7-18-19-18H93z"/>
 </svg>

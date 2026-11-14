@@ -1,18 +1,35 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   obtenerHistorial,
   marcarPagoPendiente,
 } from "@/features/parking/services/movimientos-service";
 import type { MovimientoParqueadero, FiltroHistorial } from "@/types/movimiento";
+import { Card } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
+import { Spinner } from "@/components/ui/spinner";
+import { Alert } from "@/components/ui/alert";
+import { Button, buttonClasses } from "@/components/ui/button";
+import { PagoBadge, VehiculoBadge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils/cn";
+import { formatearHora, formatearPesos, nombreTipoVehiculo } from "@/lib/utils/formato";
+
+const FILTROS: Array<{ id: FiltroHistorial; label: string }> = [
+  { id: "TODOS", label: "Todos" },
+  { id: "DENTRO", label: "Dentro" },
+  { id: "RETIRADOS", label: "Retirados" },
+  { id: "PAGADOS", label: "Pagados" },
+  { id: "PENDIENTES", label: "Pendientes" },
+];
 
 export default function HistorialPage() {
   const [filtro, setFiltro] = useState<FiltroHistorial>("TODOS");
   const [movimientos, setMovimientos] = useState<MovimientoParqueadero[]>([]);
-  const [cargando, setCargando] = useState<boolean>(true);
+  const [cargando, setCargando] = useState(true);
   const [actualizandoId, setActualizandoId] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState<string | null>(null);
 
   const cargarDatos = useCallback(async (f: FiltroHistorial) => {
     setCargando(true);
@@ -36,8 +53,8 @@ export default function HistorialPage() {
     };
   }, [filtro, cargarDatos]);
 
-  // Total efectivamente recaudado calculado ÚNICAMENTE con los registros marcados como PAGADO
-  const totalEfectivamenteRecaudado = movimientos.reduce((acc, m) => {
+  // Total efectivamente recaudado: SUMA ESTRICTAMENTE REGISTROS PAGADOS
+  const totalRecaudado = movimientos.reduce((acc, m) => {
     return m.estadoPago === "PAGADO" ? acc + m.tarifaAplicada : acc;
   }, 0);
 
@@ -45,7 +62,9 @@ export default function HistorialPage() {
     setActualizandoId(m.id);
     try {
       await marcarPagoPendiente(m.id);
+      setMensaje(`✓ Pago de ${m.placaNormalizada} actualizado a PAGADO.`);
       await cargarDatos(filtro);
+      setTimeout(() => setMensaje(null), 3000);
     } catch (err) {
       alert("Error al actualizar pago: " + (err instanceof Error ? err.message : "Error"));
     } finally {
@@ -54,141 +73,126 @@ export default function HistorialPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Encabezado */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-700/60 pb-3">
+    <div className="space-y-4 sm:space-y-5">
+      {mensaje && (
+        <Alert tone="success" title="✓">
+          {mensaje}
+        </Alert>
+      )}
+
+      {/* Tarjeta de resumen financiero */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="sm:col-span-2">
+          <StatCard
+            label="Total efectivamente recaudado"
+            value={formatearPesos(totalRecaudado)}
+            hint="Suma únicamente registros con estado PAGADO (los pendientes no se suman)"
+            highlight
+          />
+        </div>
         <div>
-          <h1 className="text-2xl font-black text-white">Historial y Control de Pagos</h1>
-          <p className="text-xs text-slate-400">Auditoría completa de vehículos y recaudos del evento</p>
-        </div>
-
-        {/* Resumen Financiero: Solo Cobros Pagados */}
-        <div className="rounded-2xl border border-teal-500/30 bg-teal-950/30 px-4 py-2 sm:text-right">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-teal-300">
-            Total Efectivamente Recaudado
-          </span>
-          <p className="font-mono text-2xl font-black text-emerald-400">
-            ${totalEfectivamenteRecaudado.toLocaleString("es-CO")} COP
-          </p>
-          <p className="text-[10px] text-slate-400">Calculado solo sobre registros pagados</p>
+          <StatCard
+            label="Registros en pantalla"
+            value={movimientos.length}
+            hint={`Filtro actual: ${FILTROS.find((f) => f.id === filtro)?.label}`}
+          />
         </div>
       </div>
 
-      {/* Barra de Filtros */}
-      <div className="flex flex-wrap gap-2">
-        {[
-          { id: "TODOS", label: "Todos" },
-          { id: "DENTRO", label: "Dentro" },
-          { id: "RETIRADOS", label: "Retirados" },
-          { id: "PAGADOS", label: "Pagados" },
-          { id: "PENDIENTES", label: "Pendientes" },
-        ].map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFiltro(f.id as FiltroHistorial)}
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
-              filtro === f.id
-                ? "bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20"
-                : "border border-slate-800 bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      {/* Filtros de estado */}
+      <div className="flex flex-wrap items-center gap-2">
+        {FILTROS.map((f) => {
+          const activo = filtro === f.id;
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFiltro(f.id)}
+              className={cn(
+                "rounded-md px-3.5 py-1.5 text-xs font-semibold transition touch-manipulation",
+                activo
+                  ? "bg-primary text-white shadow-sm"
+                  : "border border-line bg-surface text-ink-muted hover:bg-canvas hover:text-ink"
+              )}
+            >
+              {f.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Tabla de Movimientos */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/90 shadow-xl overflow-hidden">
+      {/* Tabla */}
+      <Card>
         {cargando ? (
-          <div className="p-8 text-center text-xs text-slate-400">Cargando registros...</div>
+          <Spinner label="Cargando historial..." />
         ) : movimientos.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-500">
+          <p className="py-10 text-center text-sm text-ink-muted">
             No hay vehículos que coincidan con el filtro seleccionado.
-          </div>
+          </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] uppercase tracking-wider text-slate-400">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-line bg-canvas/60 text-xs font-semibold uppercase text-ink-muted">
                 <tr>
-                  <th className="py-3 px-3">Placa</th>
-                  <th className="py-3 px-3">Tipo</th>
-                  <th className="py-3 px-3">Propietario</th>
-                  <th className="py-3 px-3">Ingreso</th>
-                  <th className="py-3 px-3">Salida</th>
-                  <th className="py-3 px-3 text-right">Tarifa</th>
-                  <th className="py-3 px-3 text-center">Vehículo</th>
-                  <th className="py-3 px-3 text-center">Pago</th>
-                  <th className="py-3 px-3 text-center">Acción</th>
+                  <th className="px-3 py-3">Placa</th>
+                  <th className="px-3 py-3">Tipo</th>
+                  <th className="px-3 py-3">Propietario</th>
+                  <th className="px-3 py-3">Ingreso</th>
+                  <th className="px-3 py-3">Salida</th>
+                  <th className="px-3 py-3 text-right">Tarifa</th>
+                  <th className="px-3 py-3 text-center">Vehículo</th>
+                  <th className="px-3 py-3 text-center">Pago</th>
+                  <th className="px-3 py-3 text-center">Acción</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-line">
                 {movimientos.map((m) => {
-                  const estaDentro = m.estadoVehiculo === "DENTRO";
                   const esPagado = m.estadoPago === "PAGADO";
-
                   return (
-                    <tr key={m.id} className="hover:bg-slate-800/40">
-                      <td className="py-3 px-3 font-mono font-bold text-white whitespace-nowrap">
+                    <tr key={m.id} className="hover:bg-canvas/40 transition">
+                      <td className="px-3 py-3 font-mono font-bold tracking-wider text-ink whitespace-nowrap">
                         {m.placaNormalizada}
                       </td>
-                      <td className="py-3 px-3 text-slate-300">
-                        {m.tipoVehiculo === "CARRO" ? "🚗 Carro" : "🏍️ Moto"}
+                      <td className="px-3 py-3 text-ink-muted whitespace-nowrap">
+                        {nombreTipoVehiculo(m.tipoVehiculo)}
                       </td>
-                      <td className="py-3 px-3 text-slate-200">
-                        <div className="font-semibold">{m.nombre}</div>
+                      <td className="px-3 py-3 text-ink">
+                        <div className="font-medium">{m.nombre}</div>
                         {(m.celular || m.cedula) && (
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-xs text-ink-muted">
                             {m.cedula ? `CC: ${m.cedula} ` : ""}
                             {m.celular ? `Tel: ${m.celular}` : ""}
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-3 text-slate-400 whitespace-nowrap">
-                        {new Date(m.fechaIngreso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
+                      <td className="px-3 py-3 text-xs text-ink-muted whitespace-nowrap">
+                        {formatearHora(m.fechaIngreso)}
                       </td>
-                      <td className="py-3 px-3 text-slate-400 whitespace-nowrap">
-                        {m.fechaSalida
-                          ? new Date(m.fechaSalida).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
-                          : "-"}
+                      <td className="px-3 py-3 text-xs text-ink-muted whitespace-nowrap">
+                        {m.fechaSalida ? formatearHora(m.fechaSalida) : "—"}
                       </td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">
-                        ${m.tarifaAplicada.toLocaleString("es-CO")}
+                      <td className="px-3 py-3 text-right font-mono font-semibold text-ink whitespace-nowrap">
+                        {formatearPesos(m.tarifaAplicada)}
                       </td>
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                        <span
-                          className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                            estaDentro
-                              ? "bg-emerald-950 text-emerald-300 border border-emerald-800/40"
-                              : "bg-slate-800 text-slate-400"
-                          }`}
-                        >
-                          {estaDentro ? "DENTRO" : "RETIRADO"}
-                        </span>
+                      <td className="px-3 py-3 text-center whitespace-nowrap">
+                        <VehiculoBadge estado={m.estadoVehiculo} />
                       </td>
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                        <span
-                          className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                            esPagado
-                              ? "bg-teal-950 text-teal-300 border border-teal-800/40"
-                              : "bg-rose-950 text-rose-300 border border-rose-800/40"
-                          }`}
-                        >
-                          {esPagado ? "PAGADO" : "PENDIENTE"}
-                        </span>
+                      <td className="px-3 py-3 text-center whitespace-nowrap">
+                        <PagoBadge estado={m.estadoPago} />
                       </td>
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                      <td className="px-3 py-3 text-center whitespace-nowrap">
                         {!esPagado ? (
-                          <button
-                            type="button"
+                          <Button
+                            variant="secondary"
+                            size="md"
                             disabled={actualizandoId === m.id}
                             onClick={() => handleMarcarPagado(m)}
-                            className="rounded-lg bg-teal-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-teal-500 disabled:opacity-50"
+                            className="px-2.5 py-1 text-xs"
                           >
                             {actualizandoId === m.id ? "..." : "Marcar Pagado"}
-                          </button>
+                          </Button>
                         ) : (
-                          <span className="text-[11px] text-slate-500">Al día</span>
+                          <span className="text-xs text-ink-soft">Al día</span>
                         )}
                       </td>
                     </tr>
@@ -198,12 +202,12 @@ export default function HistorialPage() {
             </table>
           </div>
         )}
-      </div>
+      </Card>
 
-      <div className="flex justify-between items-center text-xs text-slate-400">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-ink-muted">
         <span>Mostrando {movimientos.length} registros en total.</span>
-        <Link href="/configuracion" className="underline hover:text-white">
-          Exportar a CSV o hacer copia de seguridad →
+        <Link href="/configuracion" className={buttonClasses("secondary", "md", "text-xs py-1.5")}>
+          Exportar a CSV o Descargar Respaldo JSON →
         </Link>
       </div>
     </div>

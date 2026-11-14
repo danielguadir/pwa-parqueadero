@@ -4,7 +4,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { SwRegister } from "@/components/pwa/sw-register";
 
 export const viewport: Viewport = {
-  themeColor: "#020617",
+  themeColor: "#2563eb",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -12,13 +12,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "ParkingControl - Sistema de Parqueaderos",
-  description: "Sistema offline-first para control de entradas, salidas y cobro de parqueaderos",
+  title: "ParkingControl - Parqueadero del Evento",
+  description: "Control offline de ingresos, retiros y pagos del parqueadero",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icons/parking.svg", apple: "/icons/parking.svg" },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "ParkingControl",
   },
 };
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es">
-      <body className="bg-slate-950 text-slate-100 antialiased selection:bg-teal-500 selection:text-white">
+      <body className="antialiased">
         <SwRegister />
         <AppShell>{children}</AppShell>
       </body>

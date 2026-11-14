@@ -1,25 +1,25 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback, useRef, type FormEvent, type ChangeEvent } from "react";
 import {
   obtenerConfiguracionEvento,
   guardarConfiguracionEvento,
   generarCsvMovimientos,
   generarRespaldoJson,
   restaurarRespaldoJson,
+  CONFIG_INICIAL,
 } from "@/features/parking/services/movimientos-service";
 import { solicitarAlmacenamientoPersistente } from "@/lib/db/storage-persistence";
 import type { ConfiguracionParqueadero } from "@/types/movimiento";
+import { Card } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
+import { formatearFechaHora } from "@/lib/utils/formato";
 
 export default function ConfiguracionPage() {
-  const [config, setConfig] = useState<ConfiguracionParqueadero>({
-    tarifaCarro: 4000,
-    tarifaMoto: 1500,
-    nombreEvento: "Evento Fin de Semana",
-    ultimaCopiaSeguridad: null,
-  });
-
+  const [config, setConfig] = useState<ConfiguracionParqueadero>(CONFIG_INICIAL);
   const [tarifaCarroInput, setTarifaCarroInput] = useState<number>(4000);
   const [tarifaMotoInput, setTarifaMotoInput] = useState<number>(1500);
   const [mensajeGuardado, setMensajeGuardado] = useState<string | null>(null);
@@ -36,7 +36,7 @@ export default function ConfiguracionPage() {
   const [previsualizacion, setPrevisualizacion] = useState<{ total: number; nombreEvento: string } | null>(null);
   const [mensajeRestauracion, setMensajeRestauracion] = useState<string | null>(null);
   const [errorRestauracion, setErrorRestauracion] = useState<string | null>(null);
-  const [procesandoRestauracion, setProcesandoRestauracion] = useState<boolean>(false);
+  const [procesandoRestauracion, setProcesandoRestauracion] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,7 +60,7 @@ export default function ConfiguracionPage() {
     };
   }, [cargarDatos]);
 
-  const handleGuardarTarifas = async (e: React.FormEvent) => {
+  const handleGuardarTarifas = async (e: FormEvent) => {
     e.preventDefault();
     const nuevaConf: ConfiguracionParqueadero = {
       ...config,
@@ -103,14 +103,13 @@ export default function ConfiguracionPage() {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 2000);
 
-      // Refrescar fecha de último respaldo
       await cargarDatos();
     } catch (err) {
       alert("Error al generar respaldo: " + (err instanceof Error ? err.message : "Error"));
     }
   };
 
-  const handleSeleccionarArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSeleccionarArchivo = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -131,7 +130,7 @@ export default function ConfiguracionPage() {
         setArchivoRestaurar(contenido);
         setPrevisualizacion({
           total: parsed.movimientos.length,
-          nombreEvento: parsed.configuracion?.nombreEvento || "Desconocido",
+          nombreEvento: parsed.configuracion?.nombreEvento || "Evento",
         });
       } catch {
         setErrorRestauracion("El archivo no es un documento JSON válido.");
@@ -171,184 +170,126 @@ export default function ConfiguracionPage() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      {/* Encabezado */}
-      <div className="flex items-center justify-between border-b border-slate-700/60 pb-3">
-        <div>
-          <h1 className="text-2xl font-black text-white">Configuración y Respaldos</h1>
-          <p className="text-xs text-slate-400">Tarifas fijas del evento y seguridad de datos locales</p>
-        </div>
-        <Link
-          href="/"
-          className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-slate-700"
-        >
-          ← Volver
-        </Link>
-      </div>
-
-      {/* 1. Tarifas Fijas Configurables */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl space-y-4">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-teal-400">
-          1. Tarifas Fijas para el Evento
-        </h2>
-        <p className="text-xs text-slate-400">
-          El valor congelado que se aplicará automáticamente a cada vehículo al momento de ingresar.
-        </p>
-
+    <div className="mx-auto max-w-2xl space-y-4 sm:space-y-5">
+      {/* 1. Tarifas Fijas */}
+      <Card
+        title="1. Tarifas Fijas para el Evento"
+        subtitle="Tarifa fija congelada que se aplicará automáticamente a cada vehículo al momento de ingresar (sin cobro por tiempo)"
+      >
         <form onSubmit={handleGuardarTarifas} className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                Tarifa Automóvil ($ COP)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="100"
-                required
-                value={tarifaCarroInput}
-                onChange={(e) => setTarifaCarroInput(Number(e.target.value))}
-                className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-base font-mono font-bold text-emerald-400 focus:border-teal-400 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                Tarifa Motocicleta ($ COP)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="100"
-                required
-                value={tarifaMotoInput}
-                onChange={(e) => setTarifaMotoInput(Number(e.target.value))}
-                className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-base font-mono font-bold text-emerald-400 focus:border-teal-400 focus:outline-none"
-              />
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              id="tarifa-carro"
+              label="Tarifa fija para Carro ($ COP) *"
+              type="number"
+              min="0"
+              step="100"
+              required
+              value={tarifaCarroInput}
+              onChange={(e) => setTarifaCarroInput(Number(e.target.value))}
+            />
+            <Field
+              id="tarifa-moto"
+              label="Tarifa fija para Moto ($ COP) *"
+              type="number"
+              min="0"
+              step="100"
+              required
+              value={tarifaMotoInput}
+              onChange={(e) => setTarifaMotoInput(Number(e.target.value))}
+            />
           </div>
 
-          {mensajeGuardado && (
-            <p className="text-xs font-bold text-emerald-300">{mensajeGuardado}</p>
-          )}
+          {mensajeGuardado && <Alert tone="success">{mensajeGuardado}</Alert>}
 
-          <button
-            type="submit"
-            className="rounded-xl bg-teal-600 px-5 py-2 text-xs font-black uppercase text-white hover:bg-teal-500"
-          >
+          <Button type="submit" variant="primary">
             Guardar Tarifas
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
 
       {/* 2. Respaldos y Exportación */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl space-y-4">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-teal-400">
-          2. Copias de Seguridad y Exportación
-        </h2>
-        <p className="text-xs text-slate-400">
-          Descarga periódicamente copias de seguridad para garantizar que nunca pierdas información.
-        </p>
-
-        {/* Indicador de Última Copia */}
-        <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs">
-          <span className="text-slate-400 font-medium">Última copia de seguridad realizada:</span>
-          <p className="font-bold text-white mt-0.5">
+      <Card
+        title="2. Copias de Seguridad y Exportación"
+        subtitle="Descarga copias periódicas para tener los registros protegidos fuera de este navegador"
+      >
+        <div className="space-y-4">
+          <Alert tone={config.ultimaCopiaSeguridad ? "info" : "warning"} title="Última copia de seguridad:">
             {config.ultimaCopiaSeguridad
-              ? new Date(config.ultimaCopiaSeguridad).toLocaleString("es-CO")
-              : "⚠️ Aún no has descargado ninguna copia de seguridad en este dispositivo."}
-          </p>
-          <p className="text-[11px] text-amber-300 mt-1">
-            💡 Recomendación: Descarga un respaldo al mediodía y otro al finalizar cada jornada.
-          </p>
-        </div>
+              ? formatearFechaHora(config.ultimaCopiaSeguridad)
+              : "Aún no has descargado ninguna copia en este dispositivo. Recomendado: descargar al mediodía y al cierre del día."}
+          </Alert>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={handleDescargarRespaldo}
-            className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-xs font-black uppercase text-white shadow-md hover:bg-emerald-500"
-          >
-            📥 Descargar Respaldo JSON Completo
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExportarCsv}
-            className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 py-3 text-xs font-black uppercase text-slate-200 hover:bg-slate-700"
-          >
-            📊 Exportar Movimientos a CSV (Excel)
-          </button>
-        </div>
-      </div>
-
-      {/* 3. Restauración Segura de Respaldo */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl space-y-4">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-teal-400">
-          3. Restaurar Respaldo desde JSON
-        </h2>
-        <p className="text-xs text-slate-400">
-          Permite recuperar los movimientos en caso de cambiar de dispositivo o formatear el navegador.
-        </p>
-
-        <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1">
-            Seleccionar archivo .json de respaldo:
-          </label>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,application/json"
-            onChange={handleSeleccionarArchivo}
-            className="w-full text-xs text-slate-400 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-800 file:px-3 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-slate-700"
-          />
-        </div>
-
-        {errorRestauracion && (
-          <div className="rounded-xl border border-rose-500/40 bg-rose-950/40 p-3 text-xs font-bold text-rose-300">
-            ❌ {errorRestauracion}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button variant="primary" size="lg" onClick={handleDescargarRespaldo} className="w-full">
+              <Icon name="descargar" className="h-5 w-5" />
+              Descargar Respaldo JSON
+            </Button>
+            <Button variant="secondary" size="lg" onClick={handleExportarCsv} className="w-full">
+              <Icon name="descargar" className="h-5 w-5" />
+              Exportar a CSV (Excel)
+            </Button>
           </div>
-        )}
+        </div>
+      </Card>
 
-        {mensajeRestauracion && (
-          <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/40 p-3 text-xs font-bold text-emerald-300">
-            {mensajeRestauracion}
+      {/* 3. Restauración */}
+      <Card
+        title="3. Restaurar Respaldo desde JSON"
+        subtitle="Recupera la información si cambias de celular o si formateas el navegador"
+      >
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="input-archivo-respaldo" className="mb-1.5 block text-sm font-medium text-ink">
+              Seleccionar archivo .json de respaldo:
+            </label>
+            <input
+              id="input-archivo-respaldo"
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              onChange={handleSeleccionarArchivo}
+              className="w-full rounded-md border border-line bg-field px-3 py-2 text-sm text-ink-muted file:mr-3 file:rounded-md file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink hover:file:bg-canvas"
+            />
           </div>
-        )}
 
-        {/* Vista Previa de Archivo Válido */}
-        {previsualizacion && (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-950/20 p-4 space-y-2">
-            <p className="text-xs font-bold text-amber-300">
-              Vista previa del respaldo:
-            </p>
-            <ul className="text-xs text-slate-300 list-disc list-inside">
-              <li>Total de movimientos a restaurar: <strong>{previsualizacion.total}</strong></li>
-              <li>Identificador del evento: <strong>{previsualizacion.nombreEvento}</strong></li>
-            </ul>
+          {errorRestauracion && (
+            <Alert tone="error" title="Error:">
+              {errorRestauracion}
+            </Alert>
+          )}
 
-            <button
-              type="button"
-              disabled={procesandoRestauracion}
-              onClick={handleConfirmarRestauracion}
-              className="mt-2 w-full rounded-xl bg-amber-600 py-2.5 text-xs font-black uppercase text-white hover:bg-amber-500 disabled:opacity-50"
-            >
-              {procesandoRestauracion ? "Restaurando base de datos..." : "Confirmar y Reemplazar Datos"}
-            </button>
-          </div>
-        )}
-      </div>
+          {mensajeRestauracion && (
+            <Alert tone="success" title="✓">
+              {mensajeRestauracion}
+            </Alert>
+          )}
 
-      {/* 4. Estado de Almacenamiento Persistente */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs space-y-1">
-        <p className="font-bold text-slate-300">
-          Estado de Almacenamiento en este Dispositivo:
-        </p>
-        <p className="text-slate-400">{estadoPersistencia.mensaje}</p>
-        <p className="text-[11px] text-slate-500">
-          Tecnología: IndexedDB local vía Dexie.js · No requiere internet para funcionar.
-        </p>
-      </div>
+          {previsualizacion && (
+            <div className="space-y-3 rounded-lg border border-warning/40 bg-warning-soft p-4">
+              <strong className="text-sm font-semibold text-warning">Vista previa del archivo:</strong>
+              <ul className="list-inside list-disc text-sm text-ink">
+                <li>Movimientos a restaurar: <strong>{previsualizacion.total}</strong></li>
+                <li>Evento: <strong>{previsualizacion.nombreEvento}</strong></li>
+              </ul>
+              <Button
+                variant="danger"
+                size="md"
+                disabled={procesandoRestauracion}
+                onClick={handleConfirmarRestauracion}
+                className="w-full sm:w-auto"
+              >
+                {procesandoRestauracion ? "Restaurando..." : "Confirmar y Reemplazar Datos"}
+              </Button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* 4. Persistencia */}
+      <Alert tone="info" title="Almacenamiento del dispositivo:">
+        {estadoPersistencia.mensaje}
+      </Alert>
     </div>
   );
 }
