@@ -74,11 +74,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
       >
         <div className="mb-6 flex items-center justify-between px-2 pt-2">
-          <Link href="/" onClick={cerrarMenu} className="flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
-              P
-            </span>
-            <span className="text-lg font-bold text-ink">ParkingControl</span>
+          <Link href="/" onClick={cerrarMenu} className="text-xl font-black tracking-tight text-ink">
+            ParqueaderoGP
           </Link>
           <button
             type="button"
@@ -113,7 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Icon name="menu" className="h-6 w-6" />
             </button>
-            <span className="truncate text-base font-semibold text-ink">{TITULOS[pathname] ?? "ParkingControl"}</span>
+            <span className="truncate text-base font-semibold text-ink">{TITULOS[pathname] ?? "ParqueaderoGP"}</span>
           </div>
 
           <div className="flex items-center gap-3">

@@ -7,6 +7,7 @@ import {
   generarCsvMovimientos,
   generarRespaldoJson,
   restaurarRespaldoJson,
+  depurarDatosPrueba,
   CONFIG_INICIAL,
 } from "@/features/parking/services/movimientos-service";
 import { solicitarAlmacenamientoPersistente } from "@/lib/db/storage-persistence";
@@ -37,6 +38,8 @@ export default function ConfiguracionPage() {
   const [mensajeRestauracion, setMensajeRestauracion] = useState<string | null>(null);
   const [errorRestauracion, setErrorRestauracion] = useState<string | null>(null);
   const [procesandoRestauracion, setProcesandoRestauracion] = useState(false);
+  const [mensajeDepuracion, setMensajeDepuracion] = useState<string | null>(null);
+  const [depurando, setDepurando] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -169,6 +172,27 @@ export default function ConfiguracionPage() {
     }
   };
 
+  const handleDepurarPruebas = async () => {
+    const seguro = window.confirm(
+      "⚠️ ¿Deseas depurar y borrar todos los registros de prueba?\n\nEsta acción vaciará el historial de vehículos y reiniciará el parqueadero a CERO para comenzar el evento oficial limpio.\n\n¿Estás seguro de continuar?"
+    );
+    if (!seguro) return;
+
+    setDepurando(true);
+    setMensajeDepuracion(null);
+    try {
+      const res = await depurarDatosPrueba();
+      if (res.success) {
+        setMensajeDepuracion("✓ Se han depurado y eliminado todos los datos de prueba. El parqueadero está limpio y en ceros.");
+        await cargarDatos();
+      } else {
+        alert("Error al depurar: " + res.error);
+      }
+    } finally {
+      setDepurando(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-2xl space-y-4 sm:space-y-5">
       {/* 1. Tarifas Fijas */}
@@ -286,9 +310,34 @@ export default function ConfiguracionPage() {
         </div>
       </Card>
 
-      {/* 4. Persistencia */}
-      <Alert tone="info" title="Almacenamiento del dispositivo:">
-        {estadoPersistencia.mensaje}
+      {/* 4. Depuración de Datos de Prueba */}
+      <Card
+        title="4. Depurar / Limpiar Datos de Prueba"
+        subtitle="Vacía todo el historial de vehículos y resetea el parqueadero a cero para comenzar el evento oficial limpio"
+        className="border-danger/30"
+      >
+        <div className="space-y-3">
+          <Alert tone="warning" title="Atención:">
+            Usa esta opción antes de iniciar el evento real para borrar los vehículos de prueba que hayas registrado en tu celular o computador.
+          </Alert>
+
+          {mensajeDepuracion && <Alert tone="success">{mensajeDepuracion}</Alert>}
+
+          <Button
+            variant="danger"
+            size="lg"
+            disabled={depurando}
+            onClick={handleDepurarPruebas}
+            className="w-full sm:w-auto"
+          >
+            {depurando ? "Depurando registros..." : "🗑️ Depurar / Borrar Datos de Prueba (Reiniciar a Cero)"}
+          </Button>
+        </div>
+      </Card>
+
+      {/* 5. Persistencia y Estado */}
+      <Alert tone="info" title="Almacenamiento y Sincronización:">
+        {estadoPersistencia.mensaje} · Se sincroniza automáticamente con el computador central cuando hay red Wi-Fi.
       </Alert>
     </div>
   );

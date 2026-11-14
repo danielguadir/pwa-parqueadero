@@ -9,3 +9,5 @@ src/generated/
 *.log
 .DS_Store
 *.tsbuildinfo
+data/*.json
+!data/README.md

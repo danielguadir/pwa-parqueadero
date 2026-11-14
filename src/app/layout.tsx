@@ -12,14 +12,14 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "ParkingControl - Parqueadero del Evento",
+  title: "ParqueaderoGP - Control de Parqueadero",
   description: "Control offline de ingresos, retiros y pagos del parqueadero",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icons/parking.svg", apple: "/icons/parking.svg" },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "ParkingControl",
+    title: "ParqueaderoGP",
   },
 };
 

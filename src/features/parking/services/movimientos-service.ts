@@ -12,7 +12,7 @@ import type {
 export const CONFIG_INICIAL: ConfiguracionParqueadero = {
   tarifaCarro: 4000,
   tarifaMoto: 1500,
-  nombreEvento: "Parqueadero Evento Fin de Semana",
+  nombreEvento: "ParqueaderoGP",
   ultimaCopiaSeguridad: null,
 };
 
@@ -145,6 +145,9 @@ export async function registrarIngreso(input: RegistroIngresoInput): Promise<{
     await db.movimientos.add(movimiento);
   });
 
+  // Disparar sincronización con el servidor en segundo plano si hay red
+  Promise.resolve().then(() => sincronizarConServidor().catch(() => {}));
+
   return { success: true, movimiento };
 }
 
@@ -219,6 +222,8 @@ export async function registrarRetiro(
     await db.movimientos.put(movimientoActualizado);
   });
 
+  Promise.resolve().then(() => sincronizarConServidor().catch(() => {}));
+
   return { success: true, movimiento: movimientoActualizado };
 }
 
@@ -248,6 +253,8 @@ export async function marcarPagoPendiente(
 
     await db.movimientos.put(movimientoActualizado);
   });
+
+  Promise.resolve().then(() => sincronizarConServidor().catch(() => {}));
 
   return { success: true, movimiento: movimientoActualizado };
 }
@@ -432,6 +439,102 @@ export async function restaurarRespaldoJson(
       success: false,
       totalRestaurados: 0,
       error: `Error al procesar el archivo: ${err instanceof Error ? err.message : "JSON inválido"}`,
+    };
+  }
+}
+
+/**
+ * Sincroniza bidireccionalmente la base de datos local (IndexedDB)
+ * con el servidor central cuando hay conexión.
+ * - Es 100% no-bloqueante: si no hay red o el servidor no responde, no interrumpe nada.
+ * - Descarga los registros que otros dispositivos hayan creado.
+ * - Sube los registros locales para que aparezcan en los demás dispositivos.
+ */
+export async function sincronizarConServidor(): Promise<{
+  success: boolean;
+  total?: number;
+  offline?: boolean;
+  error?: string;
+}> {
+  if (typeof window === "undefined") {
+    return { success: false, offline: true };
+  }
+
+  try {
+    const db = getLocalDb();
+    const movimientosLocales = await db.movimientos.toArray();
+    const configLocal = await obtenerConfiguracionEvento();
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const resp = await fetch("/api/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        movimientos: movimientosLocales,
+        configuracion: configLocal,
+        accion: "SYNC",
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      return { success: false, error: `Servidor respondió ${resp.status}` };
+    }
+
+    const data = await resp.json();
+    if (!data.success || !Array.isArray(data.movimientos)) {
+      return { success: false, error: "Respuesta inválida del servidor" };
+    }
+
+    // Reconciliar en la base de datos local
+    const movimientosServidor: MovimientoParqueadero[] = data.movimientos;
+    await db.transaction("rw", db.movimientos, async () => {
+      for (const m of movimientosServidor) {
+        await db.movimientos.put(m);
+      }
+    });
+
+    return { success: true, total: movimientosServidor.length };
+  } catch {
+    return { success: false, offline: true, error: "Sin conexión con servidor central" };
+  }
+}
+
+/**
+ * Elimina todos los movimientos de prueba para iniciar el evento desde cero.
+ * Limpia la base local y también el servidor de sincronización si está en línea.
+ */
+export async function depurarDatosPrueba(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const db = getLocalDb();
+    await db.movimientos.clear();
+
+    if (typeof window !== "undefined") {
+      try {
+        const config = await obtenerConfiguracionEvento();
+        await fetch("/api/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            movimientos: [],
+            configuracion: config,
+            accion: "RESET",
+          }),
+        });
+      } catch {
+        // Modo offline: base local ya limpia
+      }
+    }
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error al depurar datos",
     };
   }
 }

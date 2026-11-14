@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   obtenerHistorial,
   marcarPagoPendiente,
+  sincronizarConServidor,
 } from "@/features/parking/services/movimientos-service";
 import type { MovimientoParqueadero, FiltroHistorial } from "@/types/movimiento";
 import { Card } from "@/components/ui/card";
@@ -36,6 +37,15 @@ export default function HistorialPage() {
     try {
       const data = await obtenerHistorial(f);
       setMovimientos(data);
+
+      // Sincronizar en segundo plano para traer registros del celular o PC
+      sincronizarConServidor()
+        .then((res) => {
+          if (res.success) {
+            obtenerHistorial(f).then(setMovimientos);
+          }
+        })
+        .catch(() => {});
     } catch (err) {
       console.error("Error al cargar historial:", err);
     } finally {

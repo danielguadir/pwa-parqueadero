@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { obtenerResumenInicio } from "@/features/parking/services/movimientos-service";
+import { obtenerResumenInicio, sincronizarConServidor } from "@/features/parking/services/movimientos-service";
 import type { ResumenInicio } from "@/types/movimiento";
 import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
@@ -18,9 +18,21 @@ export function InicioDashboard() {
 
   useEffect(() => {
     let activo = true;
+
+    // Cargar datos locales inmediatos
     obtenerResumenInicio()
       .then((data) => activo && setResumen(data))
       .catch((err) => activo && setError(err instanceof Error ? err.message : "No se pudo leer la base local."));
+
+    // Sincronizar con el servidor para traer lo registrado en celular u otros equipos
+    sincronizarConServidor()
+      .then((res) => {
+        if (activo && res.success) {
+          obtenerResumenInicio().then((data) => activo && setResumen(data));
+        }
+      })
+      .catch(() => {});
+
     return () => {
       activo = false;
     };
@@ -28,7 +40,7 @@ export function InicioDashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      <Card title="Panel del Parqueadero" subtitle="Operación del evento · los datos se guardan en este dispositivo">
+      <Card title="ParqueaderoGP" subtitle="Operación del evento · Sincronización automática entre celular y computador">
         <div className="grid gap-3 sm:grid-cols-2">
           <Link href="/entradas" className={buttonClasses("primary", "lg", "py-5 text-lg")}>
             <Icon name="entrada" className="h-6 w-6" />
