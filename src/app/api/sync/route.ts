@@ -6,8 +6,11 @@ import type { MovimientoParqueadero, ConfiguracionParqueadero } from "@/types/mo
 const DATA_DIR = join(process.cwd(), "data");
 const STORE_FILE = join(DATA_DIR, "sync-store.json");
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const RAW_SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_URL = RAW_SUPABASE_URL
+  ? RAW_SUPABASE_URL.trim().replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "")
+  : "";
+const SUPABASE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "").trim();
 
 interface SyncPayload {
   movimientos: MovimientoParqueadero[];
