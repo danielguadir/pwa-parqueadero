@@ -1,5 +1,5 @@
 import { getLocalDb } from "../../../lib/db/local-db.ts";
-import { generarUUID } from "../../../lib/utils/uuid.ts";
+import { generarUUID, generarCodigoVehiculo } from "../../../lib/utils/uuid.ts";
 import type {
   MovimientoParqueadero,
   ConfiguracionParqueadero,
@@ -122,8 +122,10 @@ export async function registrarIngreso(input: RegistroIngresoInput): Promise<{
   const tarifaAplicada = input.tipoVehiculo === "CARRO" ? config.tarifaCarro : config.tarifaMoto;
 
   const ahoraIso = new Date().toISOString();
+  const codigo = generarCodigoVehiculo(6);
   const movimiento: MovimientoParqueadero = {
     id: generarUUID(),
+    codigo,
     placa,
     placaNormalizada,
     tipoVehiculo: input.tipoVehiculo,
@@ -170,10 +172,11 @@ export async function buscarParaRetiro(termino: string): Promise<MovimientoParqu
 
   if (q.length > 0) {
     resultados = todos.filter((m) => {
+      const matchCodigo = m.codigo ? m.codigo.toLowerCase().includes(q) : false;
       const matchPlaca = m.placaNormalizada.includes(qPlaca);
       const matchNombre = m.nombreNormalizado.includes(q);
       const matchCedula = m.cedula ? m.cedula.includes(termino.trim()) : false;
-      return matchPlaca || matchNombre || matchCedula;
+      return matchCodigo || matchPlaca || matchNombre || matchCedula;
     });
   }
 
@@ -337,11 +340,12 @@ export async function generarCsvMovimientos(): Promise<string> {
   todos.sort((a, b) => new Date(a.fechaIngreso).getTime() - new Date(b.fechaIngreso).getTime());
 
   const lineas: string[] = [];
-  lineas.push('"ID","Placa","Tipo","Nombre","Celular","Cédula","Fecha Ingreso","Fecha Salida","Tarifa ($ COP)","Estado Vehículo","Estado Pago","Fecha Pago"');
+  lineas.push('"ID","Código","Placa","Tipo","Nombre","Celular","Cédula","Fecha Ingreso","Fecha Salida","Tarifa ($ COP)","Estado Vehículo","Estado Pago","Fecha Pago"');
 
   for (const m of todos) {
     const fila = [
       `"${m.id}"`,
+      `"${m.codigo || ""}"`,
       `"${m.placaNormalizada}"`,
       `"${m.tipoVehiculo}"`,
       `"${m.nombre.replace(/"/g, '""')}"`,
@@ -402,7 +406,10 @@ export async function restaurarRespaldoJson(
       };
     }
 
-    const movimientos: MovimientoParqueadero[] = parsed.movimientos;
+    const movimientos: MovimientoParqueadero[] = parsed.movimientos.map((m: MovimientoParqueadero) => ({
+      ...m,
+      codigo: m.codigo || generarCodigoVehiculo(6),
+    }));
 
     // Validación básica de estructura de cada movimiento
     for (const m of movimientos) {

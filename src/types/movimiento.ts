@@ -4,6 +4,7 @@ export type EstadoPago = "PAGADO" | "PENDIENTE";
 
 export interface MovimientoParqueadero {
   id: string;                      // UUID único
+  codigo: string;                  // Código único de 6 caracteres alfanumérico (ej: K7M9P2)
   placa: string;                   // Placa tal como la escribe el operador
   placaNormalizada: string;        // Mayúsculas, sin espacios ni guiones (índice)
   tipoVehiculo: TipoVehiculo;       // CARRO | MOTO

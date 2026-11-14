@@ -38,3 +38,17 @@ export function generarUUID(): string {
     return v.toString(16);
   });
 }
+
+/**
+ * Genera un código aleatorio de 6 caracteres compuesto por letras mayúsculas y números
+ * (ej: "K7M9P2", "A3X8B1"). Fácil de dictar, memorizar o buscar rápidamente.
+ */
+export function generarCodigoVehiculo(longitud = 6): string {
+  const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let codigo = "";
+  for (let i = 0; i < longitud; i++) {
+    const idx = Math.floor(Math.random() * caracteres.length);
+    codigo += caracteres.charAt(idx);
+  }
+  return codigo;
+}

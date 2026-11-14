@@ -144,6 +144,7 @@ export default function HistorialPage() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-line bg-canvas/60 text-xs font-semibold uppercase text-ink-muted">
                 <tr>
+                  <th className="px-3 py-3">Código</th>
                   <th className="px-3 py-3">Placa</th>
                   <th className="px-3 py-3">Tipo</th>
                   <th className="px-3 py-3">Propietario</th>
@@ -160,6 +161,9 @@ export default function HistorialPage() {
                   const esPagado = m.estadoPago === "PAGADO";
                   return (
                     <tr key={m.id} className="hover:bg-canvas/40 transition">
+                      <td className="px-3 py-3 font-mono text-xs font-semibold text-primary whitespace-nowrap">
+                        #{m.codigo || "—"}
+                      </td>
                       <td className="px-3 py-3 font-mono font-bold tracking-wider text-ink whitespace-nowrap">
                         {m.placaNormalizada}
                       </td>

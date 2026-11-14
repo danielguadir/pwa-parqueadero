@@ -4,6 +4,7 @@ import {
   normalizarPlaca,
   normalizarTexto,
 } from "../src/features/parking/services/movimientos-service.ts";
+import { generarCodigoVehiculo } from "../src/lib/utils/uuid.ts";
 
 test("normalizarPlaca convierte a mayúsculas y remueve espacios, guiones y puntos", () => {
   assert.equal(normalizarPlaca(" abc - 123 "), "ABC123");
@@ -193,4 +194,16 @@ test("rendimiento: filtrado, búsqueda y agregación sobre 2.000 movimientos tom
   assert.ok(pendientes >= 0);
   assert.ok(encontrados.length > 0);
   assert.ok(duracionMs < 50, `La operación tardó ${duracionMs.toFixed(2)}ms, debe ser menor a 50ms`);
+});
+
+test("generarCodigoVehiculo produce códigos alfanuméricos únicos de 6 caracteres", () => {
+  const codigos = new Set();
+  for (let i = 0; i < 100; i++) {
+    const c = generarCodigoVehiculo(6);
+    assert.equal(c.length, 6);
+    assert.match(c, /^[A-Z0-9]{6}$/);
+    codigos.add(c);
+  }
+  // En 100 generaciones aleatorias no debe haber colisiones
+  assert.equal(codigos.size, 100);
 });

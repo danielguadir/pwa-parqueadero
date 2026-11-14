@@ -154,7 +154,7 @@ function FormularioIngreso() {
       const m = res.movimiento;
       setAviso({
         tono: "success",
-        texto: `Ingreso guardado correctamente: ${m.placaNormalizada} · ${nombreTipoVehiculo(m.tipoVehiculo)} · ${formatearPesos(m.tarifaAplicada)} · ${formatearHora(m.fechaIngreso)}`,
+        texto: `Ingreso guardado · Código #${m.codigo}: ${m.placaNormalizada} · ${nombreTipoVehiculo(m.tipoVehiculo)} · ${formatearPesos(m.tarifaAplicada)} · ${formatearHora(m.fechaIngreso)}`,
       });
       setPlaca("");
       setNombre("");

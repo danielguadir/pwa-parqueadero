@@ -124,7 +124,7 @@ export default function SalidasPage() {
             autoComplete="off"
             value={termino}
             onChange={(e) => setTermino(e.target.value)}
-            placeholder="Escribe la placa (ej: ABC123), nombre o cédula..."
+            placeholder="Escribe código (ej: K7M9P2), placa (ej: ABC123), nombre o cédula..."
             inputClassName="pr-20 text-base"
           />
           {termino && (
@@ -143,7 +143,7 @@ export default function SalidasPage() {
       {seleccionado && (
         <Card
           className="border-2 border-primary/40 shadow-md"
-          title={`Vehículo: ${seleccionado.placaNormalizada}`}
+          title={`Vehículo: ${seleccionado.placaNormalizada} ${seleccionado.codigo ? `(#${seleccionado.codigo})` : ""}`}
           subtitle={`${nombreTipoVehiculo(seleccionado.tipoVehiculo)} · ${seleccionado.nombre}`}
           actions={
             <Button variant="secondary" size="md" onClick={() => setSeleccionado(null)}>
@@ -248,7 +248,14 @@ export default function SalidasPage() {
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xl font-bold tracking-wider text-ink">{m.placaNormalizada}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xl font-bold tracking-wider text-ink">{m.placaNormalizada}</span>
+                      {m.codigo && (
+                        <span className="rounded bg-canvas px-1.5 py-0.5 font-mono text-xs font-semibold text-primary">
+                          #{m.codigo}
+                        </span>
+                      )}
+                    </div>
                     <VehiculoBadge estado={m.estadoVehiculo} />
                   </div>
                   <p className="mt-1 truncate text-sm font-medium text-ink">{m.nombre}</p>

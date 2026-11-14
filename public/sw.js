@@ -60,7 +60,7 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith(".woff2")
   ) {
     event.respondWith(
-      caches.match(request).then((cached) => {
+      caches.match(request, { ignoreSearch: true }).then((cached) => {
         if (cached) return cached;
         return fetch(request)
           .then((response) => {
@@ -88,9 +88,9 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(async () => {
-          const cached = await caches.match(request);
+          const cached = await caches.match(request, { ignoreSearch: true });
           if (cached) return cached;
-          const rootFallback = await caches.match("/");
+          const rootFallback = await caches.match("/", { ignoreSearch: true });
           return rootFallback || new Response("Sin conexión", { status: 503, statusText: "Offline" });
         })
     );
@@ -99,7 +99,7 @@ self.addEventListener("fetch", (event) => {
 
   // 4. Otras peticiones GET
   event.respondWith(
-    caches.match(request).then((cached) => {
+    caches.match(request, { ignoreSearch: true }).then((cached) => {
       return (
         cached ||
         fetch(request)
