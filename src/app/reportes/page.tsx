@@ -1,5 +1,5 @@
-import { ReportsDashboard } from "@/features/reports/components/reports-dashboard";
+import { redirect } from "next/navigation";
 
-export default function ReportsPage() {
-  return <ReportsDashboard />;
+export default function ReportesRedirect() {
+  redirect("/historial");
 }

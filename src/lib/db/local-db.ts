@@ -7,7 +7,8 @@ import type {
   LocalParkingConfig,
   AppOperator,
   ParkingSettings,
-} from "@/types/parking";
+} from "../../types/parking.ts";
+import type { MovimientoParqueadero } from "../../types/movimiento.ts";
 
 export class ParkingLocalDb extends Dexie {
   sessions!: Table<LocalParkingSession, string>;
@@ -16,6 +17,8 @@ export class ParkingLocalDb extends Dexie {
   pendingOperations!: Table<PendingOperation, string>;
   operators!: Table<AppOperator, string>;
   configs!: Table<LocalParkingConfig, string>;
+  movimientos!: Table<MovimientoParqueadero, string>;
+  configuracion!: Table<{ clave: string; valor: unknown }, string>;
 
   constructor() {
     super("ParkingControlLocal");
@@ -50,6 +53,18 @@ export class ParkingLocalDb extends Dexie {
       payments: "id, sessionId, plateNormalized, method, createdAt, syncState",
       operators: "id, name, role, isActive, document",
       configs: "key",
+    });
+
+    // Esquema versión 5: Módulo unificado y optimizado de movimientos de parqueadero para eventos
+    this.version(5).stores({
+      pendingOperations: "id,deviceId,operationType,state,createdAt",
+      sessions: "id, plateNormalized, status, [plateNormalized+status], vehicleCategory, zone, enteredAt, exitedAt, syncState",
+      vehicles: "plateNormalized, type, lastEnteredAt",
+      payments: "id, sessionId, plateNormalized, method, createdAt, syncState",
+      operators: "id, name, role, isActive, document",
+      configs: "key",
+      movimientos: "id, placaNormalizada, tipoVehiculo, nombreNormalizado, cedula, estadoVehiculo, estadoPago, fechaIngreso, [estadoVehiculo+placaNormalizada]",
+      configuracion: "clave",
     });
   }
 }

@@ -1,5 +1,5 @@
-import { OperatorsManager } from "@/features/users/components/operators-manager";
+import { redirect } from "next/navigation";
 
-export default function UsersPage() {
-  return <OperatorsManager />;
+export default function UsuariosRedirect() {
+  redirect("/configuracion");
 }

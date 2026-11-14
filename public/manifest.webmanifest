@@ -3,7 +3,7 @@
   "short_name": "ParkingControl",
   "description": "Sistema profesional offline-first para control de entradas, salidas, recaudo y tiquetes de parqueaderos",
   "lang": "es-CO",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
