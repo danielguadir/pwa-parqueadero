@@ -27,22 +27,22 @@ const CONFIG_DEFAULT: ConfiguracionParqueadero = {
 
 function toSupabaseRow(m: MovimientoParqueadero) {
   return {
-    id: m.id,
-    codigo: m.codigo,
-    placa: m.placa,
-    placa_normalizada: m.placaNormalizada,
-    tipo_vehiculo: m.tipoVehiculo,
-    nombre: m.nombre,
-    nombre_normalizado: m.nombreNormalizado,
-    celular: m.celular || null,
-    cedula: m.cedula || null,
-    fecha_ingreso: m.fechaIngreso,
-    fecha_salida: m.fechaSalida || null,
-    tarifa_aplicada: Number(m.tarifaAplicada),
-    estado_vehiculo: m.estadoVehiculo,
-    estado_pago: m.estadoPago,
-    fecha_pago: m.fechaPago || null,
-    fecha_actualizacion: m.fechaActualizacion || m.fechaIngreso,
+    id: String(m.id),
+    codigo: String(m.codigo || "S-COD"),
+    placa: String(m.placa || "SINPLACA"),
+    placa_normalizada: String(m.placaNormalizada || "SINPLACA"),
+    tipo_vehiculo: String(m.tipoVehiculo || "CARRO"),
+    nombre: String(m.nombre || "CONDUCTOR"),
+    nombre_normalizado: String(m.nombreNormalizado || "conductor"),
+    celular: m.celular ? String(m.celular) : null,
+    cedula: m.cedula ? String(m.cedula) : null,
+    fecha_ingreso: String(m.fechaIngreso || new Date().toISOString()),
+    fecha_salida: m.fechaSalida ? String(m.fechaSalida) : null,
+    tarifa_aplicada: Number(m.tarifaAplicada) || 0,
+    estado_vehiculo: String(m.estadoVehiculo || "DENTRO"),
+    estado_pago: String(m.estadoPago || "PENDIENTE"),
+    fecha_pago: m.fechaPago ? String(m.fechaPago) : null,
+    fecha_actualizacion: String(m.fechaActualizacion || m.fechaIngreso || new Date().toISOString()),
   };
 }
 
@@ -123,20 +123,39 @@ export async function GET() {
         return NextResponse.json({
           success: true,
           provider: "supabase",
+          total: movimientos.length,
           movimientos,
           configuracion: CONFIG_DEFAULT,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        const errText = await resp.text();
+        return NextResponse.json({
+          success: false,
+          provider: "supabase",
+          status: resp.status,
+          error: `Error al consultar Supabase (${resp.status}): ${errText}`,
+          movimientos: [],
           timestamp: new Date().toISOString(),
         });
       }
     } catch (err) {
       console.warn("[SyncAPI] Error al consultar Supabase, usando fallback:", err);
+      return NextResponse.json({
+        success: false,
+        provider: "supabase",
+        error: `Excepción de red al conectar con Supabase: ${String(err)}`,
+        movimientos: [],
+        timestamp: new Date().toISOString(),
+      });
     }
   }
 
   const store = readStoreFallback();
   return NextResponse.json({
-    success: true,
-    provider: "local-store",
+    success: false,
+    provider: "none",
+    error: "Variables SUPABASE_URL o SUPABASE_ANON_KEY no están configuradas en Vercel",
     movimientos: store.movimientos,
     configuracion: store.configuracion,
     timestamp: new Date().toISOString(),
@@ -186,6 +205,15 @@ export async function POST(request: Request) {
           if (!postResp.ok) {
             const errBody = await postResp.text();
             console.error("[SyncAPI] Error upsert Supabase:", postResp.status, errBody);
+            return NextResponse.json(
+              {
+                success: false,
+                provider: "supabase",
+                error: `Supabase no pudo guardar los datos (${postResp.status}): ${errBody}`,
+                movimientos: [],
+              },
+              { status: 400 }
+            );
           }
         }
 
@@ -209,6 +237,17 @@ export async function POST(request: Request) {
             total: todos.length,
             timestamp: new Date().toISOString(),
           });
+        } else {
+          const errText = await respGet.text();
+          return NextResponse.json(
+            {
+              success: false,
+              provider: "supabase",
+              error: `Error al leer Supabase (${respGet.status}): ${errText}`,
+              movimientos: [],
+            },
+            { status: 400 }
+          );
         }
       } catch (sbErr) {
         console.warn("[SyncAPI] Falló sync con Supabase, usando reconciliador local:", sbErr);

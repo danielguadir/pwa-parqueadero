@@ -8,6 +8,7 @@ import {
   generarRespaldoJson,
   restaurarRespaldoJson,
   depurarDatosPrueba,
+  sincronizarConServidor,
   CONFIG_INICIAL,
 } from "@/features/parking/services/movimientos-service";
 import { solicitarAlmacenamientoPersistente } from "@/lib/db/storage-persistence";
@@ -40,6 +41,8 @@ export default function ConfiguracionPage() {
   const [procesandoRestauracion, setProcesandoRestauracion] = useState(false);
   const [mensajeDepuracion, setMensajeDepuracion] = useState<string | null>(null);
   const [depurando, setDepurando] = useState(false);
+  const [sincronizandoNube, setSincronizandoNube] = useState(false);
+  const [mensajeSync, setMensajeSync] = useState<{ tipo: "success" | "error"; texto: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -74,6 +77,33 @@ export default function ConfiguracionPage() {
     setConfig(nuevaConf);
     setMensajeGuardado("✓ Tarifas fijas actualizadas correctamente.");
     setTimeout(() => setMensajeGuardado(null), 3000);
+  };
+
+  const handleSincronizarAhora = async () => {
+    setSincronizandoNube(true);
+    setMensajeSync(null);
+    try {
+      const res = await sincronizarConServidor();
+      if (res.success) {
+        setMensajeSync({
+          tipo: "success",
+          texto: `✓ Sincronización exitosa: ${res.total ?? 0} movimientos actualizados y sincronizados con la nube.`,
+        });
+        await cargarDatos();
+      } else {
+        setMensajeSync({
+          tipo: "error",
+          texto: res.error || "No se pudo sincronizar con la nube.",
+        });
+      }
+    } catch (err) {
+      setMensajeSync({
+        tipo: "error",
+        texto: err instanceof Error ? err.message : "Error inesperado al sincronizar",
+      });
+    } finally {
+      setSincronizandoNube(false);
+    }
   };
 
   const handleExportarCsv = async () => {
@@ -232,9 +262,40 @@ export default function ConfiguracionPage() {
         </form>
       </Card>
 
-      {/* 2. Respaldos y Exportación */}
+      {/* 2. Sincronización en la Nube */}
       <Card
-        title="2. Copias de Seguridad y Exportación"
+        title="2. Sincronización con la Nube (Supabase)"
+        subtitle="Sube todos los vehículos guardados en este dispositivo a la nube o descarga los del otro equipo"
+      >
+        <div className="space-y-4">
+          {mensajeSync && (
+            <Alert tone={mensajeSync.tipo === "success" ? "success" : "error"} title={mensajeSync.tipo === "success" ? "✓" : "Atención:"}>
+              {mensajeSync.texto}
+            </Alert>
+          )}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button
+              variant="primary"
+              size="lg"
+              disabled={sincronizandoNube}
+              onClick={handleSincronizarAhora}
+              className="w-full sm:w-auto"
+            >
+              <Icon name="subir" className="h-5 w-5" />
+              {sincronizandoNube ? "Sincronizando con Supabase..." : "↻ Sincronizar con la Nube Ahora"}
+            </Button>
+          </div>
+
+          <p className="text-xs text-ink-muted">
+            Al pulsar este botón, la aplicación envía todos los vehículos guardados en este dispositivo a Supabase y descarga los que se hayan registrado en otros celulares o computadores.
+          </p>
+        </div>
+      </Card>
+
+      {/* 3. Respaldos y Exportación */}
+      <Card
+        title="3. Copias de Seguridad y Exportación"
         subtitle="Descarga copias periódicas para tener los registros protegidos fuera de este navegador"
       >
         <div className="space-y-4">
@@ -257,9 +318,9 @@ export default function ConfiguracionPage() {
         </div>
       </Card>
 
-      {/* 3. Restauración */}
+      {/* 4. Restauración */}
       <Card
-        title="3. Restaurar Respaldo desde JSON"
+        title="4. Restaurar Respaldo desde JSON"
         subtitle="Recupera la información si cambias de celular o si formateas el navegador"
       >
         <div className="space-y-4">
@@ -310,9 +371,9 @@ export default function ConfiguracionPage() {
         </div>
       </Card>
 
-      {/* 4. Depuración de Datos de Prueba */}
+      {/* 5. Depuración de Datos de Prueba */}
       <Card
-        title="4. Depurar / Limpiar Datos de Prueba"
+        title="5. Depurar / Limpiar Datos de Prueba"
         subtitle="Vacía todo el historial de vehículos y resetea el parqueadero a cero para comenzar el evento oficial limpio"
         className="border-danger/30"
       >
