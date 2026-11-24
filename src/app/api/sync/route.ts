@@ -169,10 +169,10 @@ export async function POST(request: Request) {
           });
         }
 
-        // Si hay movimientos que enviar, hacer upsert en Supabase
+        // Si hay movimientos que enviar, hacer upsert en Supabase especificando on_conflict=id
         if (Array.isArray(body.movimientos) && body.movimientos.length > 0) {
           const rows = body.movimientos.map(toSupabaseRow);
-          await fetch(`${SUPABASE_URL}/rest/v1/movimientos`, {
+          const postResp = await fetch(`${SUPABASE_URL}/rest/v1/movimientos?on_conflict=id`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -182,6 +182,11 @@ export async function POST(request: Request) {
             },
             body: JSON.stringify(rows),
           });
+
+          if (!postResp.ok) {
+            const errBody = await postResp.text();
+            console.error("[SyncAPI] Error upsert Supabase:", postResp.status, errBody);
+          }
         }
 
         // Descargar la lista completa actualizada desde Supabase
